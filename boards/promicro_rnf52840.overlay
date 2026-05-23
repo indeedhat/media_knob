@@ -1,0 +1,10 @@
+
+&i2c0 {
+	status = "okay";
+	
+	as5600@36 {
+		compatible = "ams,as5600";
+		reg = <0x36>;
+	};
+};
+

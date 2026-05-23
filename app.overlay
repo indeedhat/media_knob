@@ -1,0 +1,18 @@
+\ {
+	hid_dev_0: hid_dev_0 {
+		compatible = "zephyr,hid-device";
+		label = "HID0";
+		protocol-code = "none";
+		in-polling-period-us = <1000>;
+		in-report-size = <64>;
+	};
+}
+&i2c0 {
+	status = "okay";
+	
+	as5600@36 {
+		compatible = "ams,as5600";
+		reg = <0x36>;
+	};
+};
+
