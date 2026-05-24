@@ -1,4 +1,8 @@
-\ {
+/ {
+	chosen {
+		zephyr,usbd = &usbd;
+	};
+
 	hid_dev_0: hid_dev_0 {
 		compatible = "zephyr,hid-device";
 		label = "HID0";
@@ -6,7 +10,12 @@
 		in-polling-period-us = <1000>;
 		in-report-size = <64>;
 	};
-}
+};
+
+&usbd {
+	status = "okay";
+};
+
 &i2c0 {
 	status = "okay";
 	
@@ -15,4 +24,3 @@
 		reg = <0x36>;
 	};
 };
-
