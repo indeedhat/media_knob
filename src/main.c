@@ -1,106 +1,30 @@
-#include "zephyr/logging/log_core.h"
-#include "zephyr/usb/class/hid.h"
-#include <sample_usbd.h>
+#include "knob.h"
 
-#include <zephyr/kernel.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/gpio.h>
-#include <zephyr/input/input.h>
-#include <zephyr/sys/util.h>
-
-#include <zephyr/usb/usbd.h>
-#include <zephyr/usb/class/usbd_hid.h>
 #include <zephyr/drivers/sensor.h>
-
+#include <zephyr/input/input.h>
+#include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/logging/log_core.h>
+#include <zephyr/sys/util.h>
+#include <zephyr/usb/class/usbd_hid.h>
+#include <zephyr/usb/usbd.h>
+
+#include <sample_usbd.h>
+
+
 LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 
-
-#define DEAD_ZONE 1
-
-
-static void mouse_iface_ready(const struct device *dev, const bool ready);
-static int mouse_get_report(
-	const struct device *dev,
-	const uint8_t type,
-	const uint8_t id,
-	const uint16_t len,
-	uint8_t *const buf
-);
-static int as5600_init(const struct device* dev);
-static int hid_init(const struct device *dev, struct usbd_context *ctx);
-static int as5600_read(const struct device *dev);
-
-
-static const uint8_t hid_report_desc[] = 	{
-	HID_USAGE_PAGE(HID_USAGE_GEN_DESKTOP),
-	HID_USAGE(HID_USAGE_GEN_DESKTOP_MOUSE),
-	HID_COLLECTION(HID_COLLECTION_APPLICATION),
-		HID_USAGE(HID_USAGE_GEN_DESKTOP_POINTER),
-		HID_COLLECTION(HID_COLLECTION_PHYSICAL),
-			HID_USAGE_PAGE(HID_USAGE_GEN_BUTTON),
-			HID_USAGE_MIN8(1),
-			HID_USAGE_MAX8(1),
-			HID_LOGICAL_MIN8(0),
-			HID_LOGICAL_MAX8(1),
-			HID_REPORT_SIZE(1),
-			HID_REPORT_COUNT(1),
-			// HID_INPUT (Data,Var,Abs)
-			HID_INPUT(0x02),
-			// Unused bits
-			HID_REPORT_SIZE(7),
-			HID_REPORT_COUNT(1),
-			// HID_INPUT (Cnst,Ary,Abs)
-			HID_INPUT(1),
-			// high res scroll
-			HID_COLLECTION(HID_COLLECTION_LOGICAL),
-				HID_USAGE_PAGE(HID_USAGE_GEN_DESKTOP),
-				HID_USAGE(0x48), // RESOLUTION_MULTIPLIER
-				HID_LOGICAL_MIN8(0),
-				HID_LOGICAL_MAX8(15),
-				HID_ITEM(HID_ITEM_TAG_PHYSICAL_MIN, HID_ITEM_TYPE_GLOBAL, 1), 1,
-				HID_ITEM(HID_ITEM_TAG_PHYSICAL_MAX, HID_ITEM_TYPE_GLOBAL, 1), 16,
-				HID_REPORT_SIZE(4),
-				HID_REPORT_COUNT(1),
-				// HID_INPUT (Data,Var,Rel)
-				HID_INPUT(0x06),
-				// Unused bits
-				HID_REPORT_SIZE(4),
-				HID_REPORT_COUNT(1),
-				// HID_INPUT (Data,Var,Rel)
-				HID_INPUT(0x06),
-				HID_USAGE_PAGE(HID_USAGE_GEN_DESKTOP),
-				HID_USAGE(HID_USAGE_GEN_DESKTOP_WHEEL),
-				HID_LOGICAL_MIN8(-127),
-				HID_LOGICAL_MAX8(127),
-				HID_REPORT_COUNT(1),
-				HID_REPORT_SIZE(8),
-				// HID_INPUT (Data,Var,Rel)
-				HID_INPUT(0x06),
-			HID_END_COLLECTION,
-		HID_END_COLLECTION,
-	HID_END_COLLECTION,
-};
-
-enum mouse_report_idx {
-	MOUSE_BTN_REPORT_IDX = 0,
-	MULTIPLIER_REPORT_IDX = 1,
-	MOUSE_WHEEL_REPORT_IDX = 2,
-	MOUSE_REPORT_COUNT = 3,
-};
 
 static bool mouse_ready;
 int16_t as5600_prev_pos;
 
 
-struct as5600_dev_data {
-	int16_t position;
-};
-
-
 struct hid_device_ops mouse_ops = {
 	.iface_ready = mouse_iface_ready,
 	.get_report = mouse_get_report,
+	.set_report = mouse_set_report,
 };
 
 
@@ -125,7 +49,6 @@ int main(void)
 		int8_t report[MOUSE_REPORT_COUNT];
 
 		if (!mouse_ready) {
-			LOG_INF("USB HID device is not ready");
 			continue;
 		}
 
@@ -134,7 +57,7 @@ int main(void)
 			continue;
 		}
 
-		report[1] = 0xF;
+		report[1] = 0xFF;
 		report[2] = angle;
 
 		err = hid_device_submit_report(hid_dev, MOUSE_REPORT_COUNT, report);
@@ -149,7 +72,7 @@ int main(void)
 }
 
 
-static int as5600_read(const struct device *dev)
+int as5600_read(const struct device *dev)
 {
 	int err;
 	err = sensor_sample_fetch(dev);
@@ -176,7 +99,7 @@ static int as5600_read(const struct device *dev)
 }
 
 
-static int as5600_init(const struct device* dev) {
+int as5600_init(const struct device* dev) {
 	if (dev == NULL) {
 		LOG_ERR("AS5600 not found");
 		return -ENODEV;
@@ -196,7 +119,7 @@ static int as5600_init(const struct device* dev) {
 }
 
 
-static int hid_init(const struct device *dev, struct usbd_context *ctx) {
+int hid_init(const struct device *dev, struct usbd_context *ctx) {
 	int err;
 
 	if (!device_is_ready(dev)) {
@@ -233,7 +156,7 @@ static int hid_init(const struct device *dev, struct usbd_context *ctx) {
 }
 
 
-static void mouse_iface_ready(const struct device *dev, const bool ready)
+void mouse_iface_ready(const struct device *dev, const bool ready)
 {
 	LOG_INF("HID device %s interface is %s",
 		dev->name, ready ? "ready" : "not ready");
@@ -241,14 +164,39 @@ static void mouse_iface_ready(const struct device *dev, const bool ready)
 }
 
 
-static int mouse_get_report(
+int mouse_get_report(
 	const struct device *dev,
 	const uint8_t type,
 	const uint8_t id,
 	const uint16_t len,
 	uint8_t *const buf
 ) {
+	LOG_INF("GET_REPORT: type=%d, id=%d, len=%d", type, id, len);
+	if (type == HID_REPORT_TYPE_FEATURE) {
+		buf[0] = 0x0F;
+		return 1;
+	}
+
 	LOG_WRN("Get Report not implemented, Type %u ID %u", type, id);
 
 	return 0;
+}
+
+int mouse_set_report(
+	const struct device *dev,
+	const uint8_t type,
+	const uint8_t id,
+	const uint16_t len,
+	const uint8_t *const buf
+) {
+	LOG_INF("got report %d -- %d", buf[0], type);
+
+    if (type == HID_REPORT_TYPE_FEATURE) {
+        // buf[0] contains the multiplier value sent by the host
+        LOG_INF("Resolution multiplier feature report received: %d", buf[0]);
+        // Store the multiplier value if needed
+        return 0;  // Return 0 on success
+    }
+
+    return -ENOTSUP;
 }
