@@ -1,7 +1,6 @@
 #include "knob.h"
 #include "zephyr/usb/class/hid.h"
 
-#include <string.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/input/input.h>
@@ -22,6 +21,7 @@ enum op_modes {
 int current_mode = MODE_SCROLL;
 int mod_state = 0;
 int64_t last_seek_time = 0;
+int64_t last_mod_up_time = 0;
 
 typedef struct {
 	const struct device *hid;
@@ -45,7 +45,11 @@ INPUT_CALLBACK_DEFINE(NULL, button_input_cb, NULL);
 
 #define BTN_MODE_CODE 11
 #define BTN_MOD_CODE 2
-#define DEBOUNCE_TIME 2000
+#define MEDIA_DEBOUNCE_TIME 100
+#define MEDIA_DOUBLE_TAP_INTERVAL 500
+
+#define SCROLL_POLL_DELAY 10
+#define MEDIA_POLL_DELAY 50
 
 
 int main(void)
@@ -64,7 +68,7 @@ int main(void)
 	}
 
 	while (true) {
-		k_msleep(10);
+		k_msleep(current_mode == MODE_SCROLL ? SCROLL_POLL_DELAY : MEDIA_POLL_DELAY);
 
 		if (!hid_ready()) {
 			continue;
@@ -119,7 +123,7 @@ static void media_action(int16_t angle, const struct device *hid)
 	if (mod_state) {
 		// debounce
 		int64_t now = k_uptime_get();
-		if (now < last_seek_time + DEBOUNCE_TIME) {
+		if (now < last_seek_time + MEDIA_DEBOUNCE_TIME) {
 			last_seek_time = now;
 			return;
 		}
@@ -141,6 +145,11 @@ static void media_action(int16_t angle, const struct device *hid)
 	} else {
 		LOG_INF("media volume event sent");
 	}
+
+	k_msleep(1);
+	// We then send a blank report to keyup
+	report[MEDIA_ACTION_IDX] = 0;
+	hid_device_submit_report(hid,MEDIA_REPORT_SIZE, report);
 }
 
 
@@ -162,8 +171,31 @@ static void button_input_cb(struct input_event *evt, void *user_data)
 	if (evt->code == BTN_MOD_CODE) {
 		mod_state = evt->value;
 		if (current_mode == MODE_MEDIA) {
-			// TODO handle double press play/pause
+			if (evt->value) {
+				return;
+			}
 
+			int64_t now = k_uptime_get();
+			if (last_mod_up_time + MEDIA_DOUBLE_TAP_INTERVAL > now) {
+				int8_t report[MEDIA_REPORT_SIZE];
+				report[MEDIA_REPORT_IDX] = MEDIA_REPORT_ID;
+				report[MEDIA_ACTION_IDX] = HID_MEDIA_PAUSE;
+				last_mod_up_time = 0;
+
+				int err = hid_device_submit_report(device_state.hid, MEDIA_REPORT_SIZE, report);
+				if (err) {
+					LOG_ERR("failed to pause media report: %d", err);
+				} else {
+					LOG_INF("hid pause media report sent");
+				}
+
+				k_msleep(1);
+				report[MEDIA_ACTION_IDX] = 0;
+				hid_device_submit_report(device_state.hid, MEDIA_REPORT_SIZE, report);
+				return;
+			}
+
+			last_mod_up_time = now;
 			return;
 		}
 
@@ -173,12 +205,6 @@ static void button_input_cb(struct input_event *evt, void *user_data)
 			report[KEEB_MODIFIER_IDX] = evt->value
 				? HID_KBD_MODIFIER_LEFT_CTRL
 				: HID_KBD_MODIFIER_NONE;
-			report[KEEB_KEY_0_IDX] = 0;
-			report[KEEB_KEY_1_IDX] = 0;
-			report[KEEB_KEY_2_IDX] = 0;
-			report[KEEB_KEY_3_IDX] = 0;
-			report[KEEB_KEY_4_IDX] = 0;
-			report[KEEB_KEY_5_IDX] = 0;
 
 			int err = hid_device_submit_report(device_state.hid, KEEB_REPORT_SIZE, report);
 			if (err) {

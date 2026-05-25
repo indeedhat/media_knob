@@ -15,6 +15,7 @@
 #define HID_MEDIA_SCAN_NEXT  0xB5
 #define HID_MEDIA_SCAN_PREV  0xB6
 #define HID_MEDIA_PLAY_PAUSE 0xCD
+#define HID_MEDIA_PAUSE      0xB1
 #define HID_MEDIA_VOL_UP     0xE9
 #define HID_MEDIA_VOL_DONW   0xEA
 
@@ -41,16 +42,6 @@ static const uint8_t hid_report_desc[] = 	{
 		HID_REPORT_SIZE(1),
 		HID_REPORT_COUNT(8),
 		HID_INPUT(0x02),  // (Data, Var, Abs)
-
-		// Key codes (not needed if only using modifiers)
-		HID_USAGE_PAGE(HID_USAGE_GEN_KEYBOARD),
-		HID_USAGE_MIN8(0),
-		HID_USAGE_MAX8(101),
-		HID_LOGICAL_MIN8(0),
-		HID_LOGICAL_MAX8(101),
-		HID_REPORT_SIZE(8),
-		HID_REPORT_COUNT(6),
-		HID_INPUT(0x00),  // Data, Ary, Abs
 	HID_END_COLLECTION,
 
 	/*
@@ -116,12 +107,6 @@ enum mouse_report_idx {
 enum keeb_report_idx {
 	KEEB_REPORT_IDX,
 	KEEB_MODIFIER_IDX,
-	KEEB_KEY_0_IDX,
-	KEEB_KEY_1_IDX,
-	KEEB_KEY_2_IDX,
-	KEEB_KEY_3_IDX,
-	KEEB_KEY_4_IDX,
-	KEEB_KEY_5_IDX,
 	KEEB_REPORT_SIZE,
 };
 
