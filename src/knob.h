@@ -6,7 +6,7 @@
 #include <zephyr/logging/log.h>
 
 
-#define DEAD_ZONE 0
+#define DEAD_ZONE 1
 
 #define MOUSE_REPORT_ID  0x01
 #define KEEB_REPORT_ID   0x02

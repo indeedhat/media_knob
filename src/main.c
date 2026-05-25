@@ -41,8 +41,8 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 INPUT_CALLBACK_DEFINE(NULL, button_input_cb, NULL);
 
 
-#define BTN_MODE_CODE 2
-#define BTN_MOD_CODE 11
+#define BTN_MODE_CODE 11
+#define BTN_MOD_CODE 2
 #define DEBOUNCE_TIME 2000
 
 
@@ -63,24 +63,19 @@ int main(void)
 
 	while (true) {
 		k_msleep(10);
-		continue;
+
 		if (!hid_ready()) {
 			continue;
 		}
 
 		int16_t angle = as5600_read(device_state.as5600);
-		if (angle > 127) {
-			angle = 127;
-		} else if (angle < -128) {
-			angle = -128;
-		}
 
 		switch (current_mode) {
 		case MODE_SCROLL:
-			scroll_action(angle & 0xFF, device_state.hid);
+			scroll_action(angle, device_state.hid);
 			break;
 		case MODE_MEDIA:
-			media_action(angle & 0xFF, device_state.hid);
+			media_action(angle, device_state.hid);
 			break;
 		};
 	}
@@ -91,7 +86,6 @@ int main(void)
 
 static void scroll_action(int16_t angle, const struct device *hid)
 {
-	return;
 	int err;
 
 	if (angle == 0) {
@@ -113,8 +107,12 @@ static void scroll_action(int16_t angle, const struct device *hid)
 static void media_action(int16_t angle, const struct device *hid)
 {
 	int err;
-	uint8_t report[MEDIA_REPORT_IDX];
+	uint8_t report[MEDIA_REPORT_SIZE];
 	report[MEDIA_REPORT_IDX] = MEDIA_REPORT_ID;
+	
+	if (angle == 0) {
+		return;
+	}
 
 	if (mod_state) {
 		// debounce
@@ -146,6 +144,7 @@ static void media_action(int16_t angle, const struct device *hid)
 
 static void button_input_cb(struct input_event *evt, void *user_data)
 {
+	LOG_INF("button pressed: %d (%d)", evt->code, evt->value);
 	if (evt->sync == 0) {
 		return;
 	}
