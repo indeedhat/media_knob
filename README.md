@@ -3,27 +3,29 @@ A little HID device to control media and scrolling.
 
 ## Roadmap
 ### Software
-- [ ] scroll mode
+- [x] scroll mode
     - [x] high res scrolling
-    - [ ] zoom
-- [ ] media media
+    - [x] zoom
+- [x] media media
     - [ ] play/pause
-    - [ ] volume
-    - [ ] next/prev
+    - [x] volume
+    - [x] next/prev
 - [ ] mode switching (scroll/media)
+    - [x] switch between scroll and media mode
     - [ ] save mode to eeprom so the state is restored on startup
 - [ ] bluetooth connectivity
+    - [ ] low power mode
 
 ### Hardware
 - [x] connect as5600 sensor
-- [ ] trigger a button when you press on the dial
-- [ ] mode switching button
+- [x] trigger a button when you press on the dial
+- [x] mode switching button
 - [ ] sort out battery
 
 ### Cad
 - [x] dial
 - [x] bottom cover
-- [ ] main body (needs updating for buttons)
+- [x] main body (needs updating for buttons)
 
 ### Other
 - [ ] create documentation

@@ -6,15 +6,15 @@
 LOG_MODULE_REGISTER(mouse, LOG_LEVEL_DBG);
 
 
-static void mouse_iface_ready(const struct device *dev, const bool ready);
-static int mouse_get_report(
+static void hid_iface_ready(const struct device *dev, const bool ready);
+static int hid_get_report(
 	const struct device *dev,
 	const uint8_t type,
 	const uint8_t id,
 	const uint16_t len,
 	uint8_t *const buf
 );
-static int mouse_set_report(
+static int hid_set_report(
 	const struct device *dev,
 	const uint8_t type,
 	const uint8_t id,
@@ -23,16 +23,17 @@ static int mouse_set_report(
 );
 
 
-struct hid_device_ops mouse_ops = {
-	.iface_ready = mouse_iface_ready,
-	.get_report = mouse_get_report,
-	.set_report = mouse_set_report,
+struct hid_device_ops hid_ops = {
+	.iface_ready = hid_iface_ready,
+	.get_report = hid_get_report,
+	.set_report = hid_set_report,
 };
 
-static bool is_ready = false;
+
+static bool hid_is_ready = false;
 
 
-int mouse_init(const struct device *dev, struct usbd_context *ctx) {
+int hid_init(const struct device *dev, struct usbd_context *ctx) {
 	int err;
 
 	if (!device_is_ready(dev)) {
@@ -44,7 +45,7 @@ int mouse_init(const struct device *dev, struct usbd_context *ctx) {
 		dev,
 		hid_report_desc,
 		sizeof(hid_report_desc),
-		&mouse_ops
+		&hid_ops
 	);
 	if (err != 0) {
 		LOG_ERR("Failed to register HID Device, %d", err);
@@ -69,23 +70,23 @@ int mouse_init(const struct device *dev, struct usbd_context *ctx) {
 }
 
 
-bool mouse_ready()
+bool hid_ready()
 {
-	return is_ready;
+	return hid_is_ready;
 }
 
 
-static void mouse_iface_ready(const struct device *dev, const bool ready)
+static void hid_iface_ready(const struct device *dev, const bool ready)
 {
 	LOG_INF("HID device %s interface is %s",
 		 dev->name, ready ? "ready" : "not ready"
 	);
 
-	is_ready = ready;
+	hid_is_ready = ready;
 }
 
 
-static int mouse_get_report(
+static int hid_get_report(
 	const struct device *dev,
 	const uint8_t type,
 	const uint8_t id,
@@ -103,7 +104,8 @@ static int mouse_get_report(
 	return 0;
 }
 
-static int mouse_set_report(
+
+static int hid_set_report(
 	const struct device *dev,
 	const uint8_t type,
 	const uint8_t id,
