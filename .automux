@@ -1,0 +1,19 @@
+# github.com/indeedhat/automux
+version = 1
+
+session_id = "media-knob"
+
+window "Editor" {
+    exec = "vim"
+    focus = true
+}
+
+window "Shell" {
+    exec = "source ../../.venv/bin/activate"
+
+    split {
+        exec = "source ../../.venv/bin/activate"
+    }
+}
+
+# vi: ft=hcl

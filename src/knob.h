@@ -1,11 +1,13 @@
 #pragma once
 
-#include "zephyr/usb/class/hid.h"
+#include <zephyr/usb/class/hid.h>
 #include <zephyr/usb/class/usbd_hid.h>
 #include <zephyr/usb/usbd.h>
+#include <zephyr/logging/log.h>
 
 
-#define DEAD_ZONE 1
+
+#define DEAD_ZONE 0
 
 
 static const uint8_t hid_report_desc[] = 	{
@@ -39,8 +41,8 @@ static const uint8_t hid_report_desc[] = 	{
 				HID_ITEM(HID_ITEM_TAG_PHYSICAL_MAX, HID_ITEM_TYPE_GLOBAL, 1), 16,
 				HID_REPORT_SIZE(8),
 				HID_REPORT_COUNT(1),
-				// HID_INPUT (Const,Var,Rel)
-				HID_INPUT(0x02),
+				// HID_FEATURE (Const,Var,Rel)
+				HID_FEATURE(0x02),
 
 				HID_USAGE_PAGE(HID_USAGE_GEN_DESKTOP),
 				HID_USAGE(HID_USAGE_GEN_DESKTOP_WHEEL),
@@ -58,9 +60,8 @@ static const uint8_t hid_report_desc[] = 	{
 
 enum mouse_report_idx {
 	MOUSE_BTN_REPORT_IDX = 0,
-	MULTIPLIER_REPORT_IDX = 1,
-	MOUSE_WHEEL_REPORT_IDX = 2,
-	MOUSE_REPORT_COUNT = 3,
+	MOUSE_WHEEL_REPORT_IDX = 1,
+	MOUSE_REPORT_COUNT = 2,
 };
 
 
@@ -69,21 +70,7 @@ struct as5600_dev_data {
 };
 
 
-void mouse_iface_ready(const struct device *dev, const bool ready);
-int mouse_get_report(
-	const struct device *dev,
-	const uint8_t type,
-	const uint8_t id,
-	const uint16_t len,
-	uint8_t *const buf
-);
-int mouse_set_report(
-	const struct device *dev,
-	const uint8_t type,
-	const uint8_t id,
-	const uint16_t len,
-	const uint8_t *const buf
-);
+int mouse_init(const struct device *dev, struct usbd_context *ctx);
+bool mouse_ready();
 int as5600_init(const struct device* dev);
-int hid_init(const struct device *dev, struct usbd_context *ctx);
 int as5600_read(const struct device *dev);

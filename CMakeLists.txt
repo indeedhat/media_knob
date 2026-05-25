@@ -8,6 +8,7 @@ project(knob)
 include(${ZEPHYR_BASE}/samples/subsys/usb/common/common.cmake)
 target_sources(app PRIVATE
     src/main.c
-# src/sample_usbd.c
+    src/mouse.c
+    src/as5600.c
 )
 
