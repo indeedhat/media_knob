@@ -179,7 +179,7 @@ static void button_input_cb(struct input_event *evt, void *user_data)
 			if (last_mod_up_time + MEDIA_DOUBLE_TAP_INTERVAL > now) {
 				int8_t report[MEDIA_REPORT_SIZE];
 				report[MEDIA_REPORT_IDX] = MEDIA_REPORT_ID;
-				report[MEDIA_ACTION_IDX] = HID_MEDIA_PAUSE;
+				report[MEDIA_ACTION_IDX] = HID_MEDIA_PLAY_PAUSE;
 				last_mod_up_time = 0;
 
 				int err = hid_device_submit_report(device_state.hid, MEDIA_REPORT_SIZE, report);
