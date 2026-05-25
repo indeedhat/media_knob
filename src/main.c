@@ -49,7 +49,7 @@ INPUT_CALLBACK_DEFINE(NULL, button_input_cb, NULL);
 #define MEDIA_DOUBLE_TAP_INTERVAL 500
 
 #define SCROLL_POLL_DELAY 10
-#define MEDIA_POLL_DELAY 50
+#define MEDIA_POLL_DELAY 160
 
 
 int main(void)
