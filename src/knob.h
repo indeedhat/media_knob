@@ -42,12 +42,10 @@ static const uint8_t hid_report_desc[] = 	{
 		HID_REPORT_COUNT(8),
 		HID_INPUT(0x02),  // (Data, Var, Abs)
 
-		// Reserved byte, not really sure why i need this but apparently i do
-		HID_REPORT_SIZE(8),
-		HID_REPORT_COUNT(1),
-		HID_INPUT(0x3),  // Const, Ary, Abs
-		
 		// Key codes (not needed if only using modifiers)
+		HID_USAGE_PAGE(HID_USAGE_GEN_KEYBOARD),
+		HID_USAGE_MIN8(0),
+		HID_USAGE_MAX8(101),
 		HID_LOGICAL_MIN8(0),
 		HID_LOGICAL_MAX8(101),
 		HID_REPORT_SIZE(8),
@@ -97,6 +95,7 @@ static const uint8_t hid_report_desc[] = 	{
 	HID_USAGE(0x01), // (Consumer)
 	HID_COLLECTION(HID_COLLECTION_APPLICATION),
 		HID_REPORT_ID(MEDIA_REPORT_ID),
+		HID_USAGE_PAGE(0x0C), // (Consumer Page)
 		HID_LOGICAL_MIN8(0),
 		HID_LOGICAL_MAX16(0x3C, 0x02), // (572)
 		HID_REPORT_SIZE(16),

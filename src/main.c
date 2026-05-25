@@ -1,6 +1,7 @@
 #include "knob.h"
 #include "zephyr/usb/class/hid.h"
 
+#include <string.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/input/input.h>
@@ -172,6 +173,12 @@ static void button_input_cb(struct input_event *evt, void *user_data)
 			report[KEEB_MODIFIER_IDX] = evt->value
 				? HID_KBD_MODIFIER_LEFT_CTRL
 				: HID_KBD_MODIFIER_NONE;
+			report[KEEB_KEY_0_IDX] = 0;
+			report[KEEB_KEY_1_IDX] = 0;
+			report[KEEB_KEY_2_IDX] = 0;
+			report[KEEB_KEY_3_IDX] = 0;
+			report[KEEB_KEY_4_IDX] = 0;
+			report[KEEB_KEY_5_IDX] = 0;
 
 			int err = hid_device_submit_report(device_state.hid, KEEB_REPORT_SIZE, report);
 			if (err) {
