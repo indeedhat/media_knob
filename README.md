@@ -1,13 +1,24 @@
 # Media Knob
 A little HID device to control media and scrolling.
 
+## Controls
+### Scroll mode
+- spin for high def scrolling
+- press and spin to zoom
+
+### Media Mode
+- spin to change volume
+- double tap to play/pause
+- press and spin to skip to next/prev track
+
+
 ## Roadmap
 ### Software
 - [x] scroll mode
     - [x] high res scrolling
     - [x] zoom
 - [x] media media
-    - [ ] play/pause
+    - [x] play/pause
     - [x] volume
     - [x] next/prev
 - [ ] mode switching (scroll/media)
