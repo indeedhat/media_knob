@@ -22,6 +22,9 @@
 #define HID_LEFT_CTRL 0xE0
 #define HID_RIGHT_GUI 0xE7
 
+#define BTN_MODE_CODE 11
+#define BTN_MOD_CODE 2
+
 
 static const uint8_t hid_report_desc[] = 	{
 

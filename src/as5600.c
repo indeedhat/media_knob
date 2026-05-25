@@ -12,8 +12,7 @@ int16_t as5600_prev_pos;
 
 int as5600_read(const struct device *dev)
 {
-	int err;
-	err = sensor_sample_fetch(dev);
+	int err = sensor_sample_fetch(dev);
 	if (err) {
 		LOG_DBG("Sample fetch failed: %d", err);
 		return 0;

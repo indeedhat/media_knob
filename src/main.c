@@ -12,6 +12,13 @@
 #include <zephyr/input/input.h>
 
 
+#define MEDIA_DEBOUNCE_TIME 100
+#define MEDIA_DOUBLE_TAP_INTERVAL 500
+
+#define SCROLL_POLL_DELAY 10
+#define MEDIA_POLL_DELAY 160
+
+
 enum op_modes {
 	MODE_SCROLL,
 	MODE_MEDIA,
@@ -20,6 +27,7 @@ enum op_modes {
 
 int current_mode = MODE_SCROLL;
 int mod_state = 0;
+
 int64_t last_seek_time = 0;
 int64_t last_mod_up_time = 0;
 
@@ -37,19 +45,11 @@ devices device_state = {
 static void scroll_action(int16_t angle, const struct device *hid);
 static void media_action(int16_t angle, const struct device *hid);
 static void button_input_cb(struct input_event *evt, void *user_data);
+static void trigger_media_event(int action);
 
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 INPUT_CALLBACK_DEFINE(NULL, button_input_cb, NULL);
-
-
-#define BTN_MODE_CODE 11
-#define BTN_MOD_CODE 2
-#define MEDIA_DEBOUNCE_TIME 100
-#define MEDIA_DOUBLE_TAP_INTERVAL 500
-
-#define SCROLL_POLL_DELAY 10
-#define MEDIA_POLL_DELAY 160
 
 
 int main(void)
@@ -92,8 +92,6 @@ int main(void)
 
 static void scroll_action(int16_t angle, const struct device *hid)
 {
-	int err;
-
 	if (angle == 0) {
 		return;
 	}
@@ -102,7 +100,7 @@ static void scroll_action(int16_t angle, const struct device *hid)
 	report[MOUSE_REPORT_IDX] = MOUSE_REPORT_ID;
 	report[MOUSE_ANGLE_IDX] = angle;
 
-	err = hid_device_submit_report(hid, MOUSE_REPORT_SIZE, report);
+	int err = hid_device_submit_report(hid, MOUSE_REPORT_SIZE, report);
 	if (err) {
 		LOG_ERR("HID submit report error, %d", err);
 	} else {
@@ -110,9 +108,10 @@ static void scroll_action(int16_t angle, const struct device *hid)
 	}
 }
 
+
 static void media_action(int16_t angle, const struct device *hid)
 {
-	int err;
+	int action;
 	uint8_t report[MEDIA_REPORT_SIZE];
 	report[MEDIA_REPORT_IDX] = MEDIA_REPORT_ID;
 	
@@ -130,32 +129,21 @@ static void media_action(int16_t angle, const struct device *hid)
 
 		last_seek_time = now;
 
-		report[MEDIA_ACTION_IDX] = angle > 0
+		action = angle > 0
 			? HID_MEDIA_SCAN_NEXT
 			: HID_MEDIA_SCAN_PREV;
 	} else {
-		report[MEDIA_ACTION_IDX] = angle > 0
+		action = angle > 0
 			? HID_MEDIA_VOL_UP
 			: HID_MEDIA_VOL_DONW;
 	}
 
-	err = hid_device_submit_report(hid,MEDIA_REPORT_SIZE, report);
-	if (err) {
-		LOG_ERR("failed to send volume media event: %d", err);
-	} else {
-		LOG_INF("media volume event sent");
-	}
-
-	k_msleep(1);
-	// We then send a blank report to keyup
-	report[MEDIA_ACTION_IDX] = 0;
-	hid_device_submit_report(hid,MEDIA_REPORT_SIZE, report);
+	trigger_media_event(HID_MEDIA_PLAY_PAUSE);
 }
 
 
 static void button_input_cb(struct input_event *evt, void *user_data)
 {
-	LOG_INF("button pressed: %d (%d)", evt->code, evt->value);
 	if (evt->sync == 0) {
 		return;
 	}
@@ -164,6 +152,7 @@ static void button_input_cb(struct input_event *evt, void *user_data)
 		if (evt->value == 0) {
 			current_mode = (current_mode + 1) % MODE_COUNT;
 		}
+
 		LOG_INF("Set mode to %s", current_mode == MODE_SCROLL ? "scroll" : "media");
 		return;
 	}
@@ -177,21 +166,9 @@ static void button_input_cb(struct input_event *evt, void *user_data)
 
 			int64_t now = k_uptime_get();
 			if (last_mod_up_time + MEDIA_DOUBLE_TAP_INTERVAL > now) {
-				int8_t report[MEDIA_REPORT_SIZE];
-				report[MEDIA_REPORT_IDX] = MEDIA_REPORT_ID;
-				report[MEDIA_ACTION_IDX] = HID_MEDIA_PLAY_PAUSE;
 				last_mod_up_time = 0;
 
-				int err = hid_device_submit_report(device_state.hid, MEDIA_REPORT_SIZE, report);
-				if (err) {
-					LOG_ERR("failed to pause media report: %d", err);
-				} else {
-					LOG_INF("hid pause media report sent");
-				}
-
-				k_msleep(1);
-				report[MEDIA_ACTION_IDX] = 0;
-				hid_device_submit_report(device_state.hid, MEDIA_REPORT_SIZE, report);
+				trigger_media_event(HID_MEDIA_PLAY_PAUSE);
 				return;
 			}
 
@@ -215,5 +192,32 @@ static void button_input_cb(struct input_event *evt, void *user_data)
 		}
 
 		return;
+	}
+}
+
+
+static void trigger_media_event(int action)
+{
+	int err;
+	int8_t report[MEDIA_REPORT_SIZE];
+	report[MEDIA_REPORT_IDX] = MEDIA_REPORT_ID;
+	report[MEDIA_ACTION_IDX] = action;
+
+	err = hid_device_submit_report(device_state.hid, MEDIA_REPORT_SIZE, report);
+	if (err) {
+		LOG_ERR("failed to send media down event: %d", err);
+		return;
+	} else {
+		LOG_INF("media event down sent");
+	}
+
+	k_msleep(1);
+
+	report[MEDIA_ACTION_IDX] = 0;
+	hid_device_submit_report(device_state.hid, MEDIA_REPORT_SIZE, report);
+	if (err) {
+		LOG_ERR("failed to send media up event: %d", err);
+	} else {
+		LOG_INF("media event up sent");
 	}
 }
