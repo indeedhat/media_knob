@@ -1,4 +1,5 @@
 #include "knob.h"
+#include "zephyr/usb/class/hid.h"
 
 #include <zephyr/device.h>
 #include <zephyr/drivers/gpio.h>
@@ -92,7 +93,7 @@ static void scroll_action(int16_t angle, const struct device *hid)
 		return;
 	}
 
-	int8_t report[MOUSE_REPORT_SIZE];
+	uint8_t report[MOUSE_REPORT_SIZE];
 	report[MOUSE_REPORT_IDX] = MOUSE_REPORT_ID;
 	report[MOUSE_ANGLE_IDX] = angle;
 
@@ -166,11 +167,11 @@ static void button_input_cb(struct input_event *evt, void *user_data)
 		}
 
 		if (current_mode == MODE_SCROLL) {
-			int8_t report[KEEB_REPORT_SIZE];
+			uint8_t report[KEEB_REPORT_SIZE];
 			report[KEEB_REPORT_IDX] = KEEB_REPORT_ID;
 			report[KEEB_MODIFIER_IDX] = evt->value
-				? HID_LEFT_CTRL
-				: 0;
+				? HID_KBD_MODIFIER_LEFT_CTRL
+				: HID_KBD_MODIFIER_NONE;
 
 			int err = hid_device_submit_report(device_state.hid, KEEB_REPORT_SIZE, report);
 			if (err) {

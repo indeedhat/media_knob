@@ -8,8 +8,8 @@
 
 #define DEAD_ZONE 1
 
-#define MOUSE_REPORT_ID  0x01
-#define KEEB_REPORT_ID   0x02
+#define KEEB_REPORT_ID   0x01
+#define MOUSE_REPORT_ID  0x02
 #define MEDIA_REPORT_ID  0x03
 
 #define HID_MEDIA_SCAN_NEXT  0xB5
@@ -23,6 +23,38 @@
 
 
 static const uint8_t hid_report_desc[] = 	{
+
+	/*
+	 * Keyboard
+	 */
+	HID_USAGE_PAGE(HID_USAGE_GEN_DESKTOP),
+	HID_USAGE(HID_USAGE_GEN_DESKTOP_KEYBOARD),
+	HID_COLLECTION(HID_COLLECTION_APPLICATION),
+		HID_REPORT_ID(KEEB_REPORT_ID),
+		
+		// Modifier keys
+		HID_USAGE_PAGE(HID_USAGE_GEN_KEYBOARD),
+		HID_USAGE_MIN8(HID_LEFT_CTRL),
+		HID_USAGE_MAX8(HID_RIGHT_GUI),
+		HID_LOGICAL_MIN8(0),
+		HID_LOGICAL_MAX8(1),
+		HID_REPORT_SIZE(1),
+		HID_REPORT_COUNT(8),
+		HID_INPUT(0x02),  // (Data, Var, Abs)
+
+		// Reserved byte, not really sure why i need this but apparently i do
+		HID_REPORT_SIZE(8),
+		HID_REPORT_COUNT(1),
+		HID_INPUT(0x3),  // Const, Ary, Abs
+		
+		// Key codes (not needed if only using modifiers)
+		HID_LOGICAL_MIN8(0),
+		HID_LOGICAL_MAX8(101),
+		HID_REPORT_SIZE(8),
+		HID_REPORT_COUNT(6),
+		HID_INPUT(0x00),  // Data, Ary, Abs
+	HID_END_COLLECTION,
+
 	/*
 	 * Mouse
 	 */
@@ -56,40 +88,6 @@ static const uint8_t hid_report_desc[] = 	{
 				HID_INPUT(0x06), // (Data, Var, Rel)
 			HID_END_COLLECTION,
 		HID_END_COLLECTION,
-	HID_END_COLLECTION,
-
-	/*
-	 * Keyboard
-	 */
-	HID_USAGE_PAGE(HID_USAGE_GEN_DESKTOP),
-	HID_USAGE(HID_USAGE_GEN_DESKTOP_KEYBOARD),
-	HID_COLLECTION(HID_COLLECTION_APPLICATION),
-		HID_REPORT_ID(KEEB_REPORT_ID),
-		
-		// Modifier keys
-		HID_USAGE_PAGE(HID_USAGE_GEN_KEYBOARD),
-		HID_USAGE_MIN8(HID_LEFT_CTRL),
-		HID_USAGE_MAX8(HID_RIGHT_GUI),
-		HID_LOGICAL_MIN8(0),
-		HID_LOGICAL_MAX8(1),
-		HID_REPORT_SIZE(1),
-		HID_REPORT_COUNT(8),
-		HID_INPUT(0x02),  // (Data, Var, Abs)
-
-		// Reserved byte, not really sure why i need this but apparently i do
-		HID_REPORT_SIZE(8),
-		HID_REPORT_COUNT(1),
-		HID_INPUT(1),  // Const, Ary, Abs
-		
-		// Key codes (not needed if only using modifiers)
-		HID_USAGE_PAGE(HID_USAGE_GEN_KEYBOARD),
-		HID_USAGE_MIN8(0),
-		HID_USAGE_MAX8(101),
-		HID_LOGICAL_MIN8(0),
-		HID_LOGICAL_MAX8(101),
-		HID_REPORT_SIZE(8),
-		HID_REPORT_COUNT(6),
-		HID_INPUT(0x00),  // Data, Ary, Abs
 	HID_END_COLLECTION,
 
 	/*
