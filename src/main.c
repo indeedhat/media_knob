@@ -10,6 +10,7 @@
 #include <zephyr/usb/class/usbd_hid.h>
 #include <zephyr/usb/usbd.h>
 #include <zephyr/input/input.h>
+#include <zephyr/settings/settings.h>
 
 
 #define MEDIA_DEBOUNCE_TIME 100
@@ -46,6 +47,7 @@ static void scroll_action(int16_t angle, const struct device *hid);
 static void media_action(int16_t angle, const struct device *hid);
 static void button_input_cb(struct input_event *evt, void *user_data);
 static void trigger_media_event(int action);
+static void init();
 
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
@@ -54,6 +56,8 @@ INPUT_CALLBACK_DEFINE(NULL, button_input_cb, NULL);
 
 int main(void)
 {
+	init();
+
 	int err;
 	struct usbd_context usbd_ctx;
 
@@ -87,6 +91,15 @@ int main(void)
 	}
 
 	return 0;
+}
+
+
+static void init()
+{
+	int size = settings_load_one(SETTINGS_MODE, &current_mode, sizeof(current_mode));
+	if (size < 0) {
+		LOG_ERR("failed to load mode from settings");
+	}
 }
 
 
@@ -151,6 +164,11 @@ static void button_input_cb(struct input_event *evt, void *user_data)
 	if (evt->code == BTN_MODE_CODE) {
 		if (evt->value == 0) {
 			current_mode = (current_mode + 1) % MODE_COUNT;
+
+			int err = settings_save_one(SETTINGS_MODE, &current_mode, sizeof(current_mode));
+			if (err != 0) {
+				LOG_ERR("Failed to save mode to settings");
+			}
 		}
 
 		LOG_INF("Set mode to %s", current_mode == MODE_SCROLL ? "scroll" : "media");

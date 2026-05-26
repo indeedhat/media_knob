@@ -25,6 +25,8 @@
 #define BTN_MODE_CODE 11
 #define BTN_MOD_CODE 2
 
+#define SETTINGS_MODE "mode"
+
 
 static const uint8_t hid_report_desc[] = 	{
 
