@@ -1,6 +1,8 @@
-#include "knob.h"
+#include "hid.h"
+
 #include <sample_usbd.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/usb/usbd.h>
 
 
 LOG_MODULE_REGISTER(mouse, LOG_LEVEL_DBG);
@@ -73,6 +75,12 @@ int hid_init(const struct device *dev, struct usbd_context *ctx) {
 bool hid_ready()
 {
 	return hid_is_ready;
+}
+
+bool usb_connected()
+{
+	// TODO: make this actually function
+	return true;
 }
 
 

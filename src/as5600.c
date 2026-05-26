@@ -1,4 +1,4 @@
-#include "knob.h"
+#include "as5600.h"
 
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/logging/log.h>

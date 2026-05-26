@@ -10,5 +10,6 @@ target_sources(app PRIVATE
     src/main.c
     src/hid.c
     src/as5600.c
+    src/bluetooth.c
 )
 

@@ -1,2 +1,11 @@
+mainmenu "Bluetooth: Peripheral HIDs"
+
+config SAMPLE_BT_USE_AUTHENTICATION
+	bool "Enable passkey authentication"
+	default y
+	help
+	  Enable the passkey authentication callback and register the GATT
+	  read and write attributes as authentication required.
+
 source "${ZEPHYR_BASE}/samples/subsys/usb/common/Kconfig.sample_usbd"
 source "Kconfig.zephyr"

@@ -1,5 +1,7 @@
 #include "knob.h"
-#include "zephyr/usb/class/hid.h"
+#include "as5600.h"
+#include "hid.h"
+#include "bluetooth.h"
 
 #include <zephyr/device.h>
 #include <zephyr/drivers/gpio.h>
@@ -11,6 +13,7 @@
 #include <zephyr/usb/usbd.h>
 #include <zephyr/input/input.h>
 #include <zephyr/settings/settings.h>
+#include <zephyr/bluetooth/bluetooth.h>
 
 
 #define MEDIA_DEBOUNCE_TIME 100
@@ -43,30 +46,34 @@ devices device_state = {
 };
 
 
-static void scroll_action(int16_t angle, const struct device *hid);
-static void media_action(int16_t angle, const struct device *hid);
-static void button_input_cb(struct input_event *evt, void *user_data);
-static void trigger_media_event(int action);
-static void init();
-
-
 LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 INPUT_CALLBACK_DEFINE(NULL, button_input_cb, NULL);
 
 
 int main(void)
 {
-	init();
+	LOG_INF("got to main");
+	// TODO: this might be the cause of me bricking a couple of boot loaders
+	// init_settings();
 
 	int err;
 	struct usbd_context usbd_ctx;
 
-	err = hid_init(device_state.hid, &usbd_ctx);
+	// err = hid_init(device_state.hid, &usbd_ctx);
+	// if (err != 0) {
+	// 	return err;
+	// }
+
+	err = as5600_init(device_state.as5600);
 	if (err != 0) {
 		return err;
 	}
 
-	err = as5600_init(device_state.as5600);
+	k_msleep(10000);
+	LOG_INF("starting bt");
+	k_msleep(1000);
+
+	err = bt_init();
 	if (err != 0) {
 		return err;
 	}
@@ -74,7 +81,7 @@ int main(void)
 	while (true) {
 		k_msleep(current_mode == MODE_SCROLL ? SCROLL_POLL_DELAY : MEDIA_POLL_DELAY);
 
-		if (!hid_ready()) {
+		if (true || !hid_ready()) {
 			continue;
 		}
 
@@ -94,16 +101,18 @@ int main(void)
 }
 
 
-static void init()
+void init_settings()
 {
 	int size = settings_load_one(SETTINGS_MODE, &current_mode, sizeof(current_mode));
+	current_mode %= MODE_COUNT;
+
 	if (size < 0) {
 		LOG_ERR("failed to load mode from settings");
 	}
 }
 
 
-static void scroll_action(int16_t angle, const struct device *hid)
+void scroll_action(int16_t angle, const struct device *hid)
 {
 	if (angle == 0) {
 		return;
@@ -113,16 +122,11 @@ static void scroll_action(int16_t angle, const struct device *hid)
 	report[MOUSE_REPORT_IDX] = MOUSE_REPORT_ID;
 	report[MOUSE_ANGLE_IDX] = angle;
 
-	int err = hid_device_submit_report(hid, MOUSE_REPORT_SIZE, report);
-	if (err) {
-		LOG_ERR("HID submit report error, %d", err);
-	} else {
-		LOG_DBG("sent angle: %d", angle);
-	}
+	submit_report("hid scroll", hid, MOUSE_REPORT_SIZE, report);
 }
 
 
-static void media_action(int16_t angle, const struct device *hid)
+void media_action(int16_t angle, const struct device *hid)
 {
 	int action;
 	uint8_t report[MEDIA_REPORT_SIZE];
@@ -155,7 +159,7 @@ static void media_action(int16_t angle, const struct device *hid)
 }
 
 
-static void button_input_cb(struct input_event *evt, void *user_data)
+void button_input_cb(struct input_event *evt, void *user_data)
 {
 	if (evt->sync == 0) {
 		return;
@@ -201,41 +205,53 @@ static void button_input_cb(struct input_event *evt, void *user_data)
 				? HID_KBD_MODIFIER_LEFT_CTRL
 				: HID_KBD_MODIFIER_NONE;
 
-			int err = hid_device_submit_report(device_state.hid, KEEB_REPORT_SIZE, report);
-			if (err) {
-				LOG_ERR("failed to send hid keyboard report: %d", err);
-			} else {
-				LOG_INF("hid keyboard report sent");
-			}
+			submit_report("hid keeyboard", device_state.hid, KEEB_REPORT_SIZE, report);
 		}
 
 		return;
 	}
 }
 
-
-static void trigger_media_event(int action)
-{
+void submit_report(
+	const char *trigger_name,
+	const struct device *dev,
+	const uint16_t size,
+	const uint8_t *const report
+) {
 	int err;
+
+	if (usb_connected()) {
+		err = hid_device_submit_report(device_state.hid, MEDIA_REPORT_SIZE, report);
+		if (err) {
+			LOG_ERR("failed to send %s down event: %d", trigger_name, err);
+			return;
+		} else {
+			LOG_INF("%s event sent", trigger_name);
+		}
+	}
+
+	if (bt_connected()) {
+		err = bt_submit_report(size, report);
+		if (err) {
+			LOG_ERR("failed to send %s down event: %d", trigger_name, err);
+			return;
+		} else {
+			LOG_INF("%s event sent", trigger_name);
+		}
+	}
+}
+
+void trigger_media_event(int action)
+{
 	int8_t report[MEDIA_REPORT_SIZE];
 	report[MEDIA_REPORT_IDX] = MEDIA_REPORT_ID;
 	report[MEDIA_ACTION_IDX] = action;
 
-	err = hid_device_submit_report(device_state.hid, MEDIA_REPORT_SIZE, report);
-	if (err) {
-		LOG_ERR("failed to send media down event: %d", err);
-		return;
-	} else {
-		LOG_INF("media event down sent");
-	}
+	submit_report("media down", device_state.hid, MEDIA_REPORT_SIZE, report);
 
 	k_msleep(1);
 
 	report[MEDIA_ACTION_IDX] = 0;
-	hid_device_submit_report(device_state.hid, MEDIA_REPORT_SIZE, report);
-	if (err) {
-		LOG_ERR("failed to send media up event: %d", err);
-	} else {
-		LOG_INF("media event up sent");
-	}
+
+	submit_report("media up", device_state.hid, MEDIA_REPORT_SIZE, report);
 }
