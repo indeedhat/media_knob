@@ -1,9 +1,8 @@
 #pragma once
 
 
+#include <stdint.h>
 #include <zephyr/usb/class/hid.h>
-#include <zephyr/usb/class/usbd_hid.h>
-#include <zephyr/usb/usbd.h>
 
 
 #define KEEB_REPORT_ID   0x01
@@ -116,7 +115,3 @@ enum media_report_idx {
 	MEDIA_REPORT_SIZE,
 };
 
-
-int hid_init(const struct device *dev, struct usbd_context *ctx);
-bool hid_ready();
-bool usb_connected();

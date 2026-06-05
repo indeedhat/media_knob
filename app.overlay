@@ -1,8 +1,4 @@
 / {
-	chosen {
-		zephyr,usbd = &usbd;
-	};
-
 	hid_dev_0: hid_dev_0 {
 		compatible = "zephyr,hid-device";
 		label = "HID0";
@@ -25,10 +21,6 @@
 			zephyr,code = <INPUT_KEY_1>;
 		};
 	};
-};
-
-&usbd {
-	status = "okay";
 };
 
 &i2c0 {

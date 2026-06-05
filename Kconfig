@@ -1,3 +1,6 @@
+# Copyright 2023 Google LLC
+# SPDX-License-Identifier: Apache-2.0
+source "${ZEPHYR_BASE}/samples/subsys/usb/common/Kconfig.sample_usbd"
 mainmenu "Bluetooth: Peripheral HIDs"
 
 config SAMPLE_BT_USE_AUTHENTICATION
@@ -7,5 +10,4 @@ config SAMPLE_BT_USE_AUTHENTICATION
 	  Enable the passkey authentication callback and register the GATT
 	  read and write attributes as authentication required.
 
-source "${ZEPHYR_BASE}/samples/subsys/usb/common/Kconfig.sample_usbd"
 source "Kconfig.zephyr"
