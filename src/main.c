@@ -1,7 +1,9 @@
 #include <zephyr/sys/printk.h>
 #include <zephyr/device.h>
+#include <zephyr/drivers/regulator.h>
 #include <zephyr/input/input.h>
 #include <zephyr/settings/settings.h>
+#include <zephyr/drivers/gpio.h>
 
 #include "hid.h"
 #include "bt.h"
@@ -39,6 +41,12 @@ devices device_state = {
 	.as5600 = DEVICE_DT_GET_ANY(ams_as5600),
 };
 
+static const struct gpio_dt_spec vcc_enable = {
+    .port = DEVICE_DT_GET(DT_NODELABEL(gpio0)),
+    .pin = 13,
+    .dt_flags = GPIO_ACTIVE_HIGH,
+};
+
 
 void scroll_action(int16_t angle);
 void media_action(int16_t angle);
@@ -59,6 +67,8 @@ INPUT_CALLBACK_DEFINE(NULL, button_input_cb, NULL);
 int main(void)
 {
 	int err;
+
+	gpio_pin_configure_dt(&vcc_enable, GPIO_OUTPUT_ACTIVE);
 
 	err = bt_init();
 	if (err) {
@@ -125,10 +135,15 @@ void media_action(int16_t angle)
 		return;
 	}
 
+	// After we skip the track we want to debounce for a short period so we
+	// don't accidentally skip multiple tracks or change the volume as we
+	// release the press.
+	// The debounce time is purely set based on when the skip happens.
+	int64_t now = k_uptime_get();
+	bool should_debounce = now < last_seek_time + MEDIA_DEBOUNCE_TIME;
+
 	if (mod_state) {
-		// debounce
-		int64_t now = k_uptime_get();
-		if (now < last_seek_time + MEDIA_DEBOUNCE_TIME) {
+		if (should_debounce {
 			last_seek_time = now;
 			return;
 		}
@@ -139,6 +154,10 @@ void media_action(int16_t angle)
 			? HID_MEDIA_SCAN_NEXT
 			: HID_MEDIA_SCAN_PREV;
 	} else {
+		if (should_debounce) {
+			return;
+		}
+
 		action = angle > 0
 			? HID_MEDIA_VOL_UP
 			: HID_MEDIA_VOL_DONW;
