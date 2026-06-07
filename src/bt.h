@@ -1,3 +1,4 @@
+#pragma once
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -5,7 +6,7 @@
 
 #define KEEB_ATTR_IDX  6
 #define MOUSE_ATTR_IDX 10
-#define MEDIA_ATTR_IDX 14
+#define MEDIA_ATTR_IDX 16
 
 
 int bt_init();
