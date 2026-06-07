@@ -8,17 +8,24 @@
 #include <zephyr/drivers/gpio.h>
 #include <stddef.h>
 #include <string.h>
+
 #include <zephyr/sys/printk.h>
 #include <zephyr/sys/byteorder.h>
 #include <zephyr/kernel.h>
-
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/hci.h>
 #include <zephyr/bluetooth/conn.h>
 #include <zephyr/bluetooth/uuid.h>
 #include <zephyr/bluetooth/gatt.h>
+#include <zephyr/logging/log.h>
 
 #include "hid.h"
+
+
+LOG_MODULE_REGISTER(bt_hog, LOG_LEVEL_DBG);
+
+
+#define RESOLUTION_MULTIPLIER 0x0F
 
 
 enum {
@@ -50,16 +57,138 @@ enum {
 };
 
 
-
 static struct hids_report keeb_input  = { .id = KEEB_REPORT_ID,  .type = HIDS_INPUT };
-static struct hids_report mouse_input = { .id = MOUSE_REPORT_ID, .type = HIDS_INPUT };
 static struct hids_report media_input = { .id = MEDIA_REPORT_ID, .type = HIDS_INPUT };
+static struct hids_report mouse_input = { .id = MOUSE_REPORT_ID, .type = HIDS_INPUT };
+static struct hids_report mouse_feat  = { .id = MOUSE_REPORT_ID, .type = HIDS_FEATURE };
 
 static uint8_t mouse_enabled;
 static uint8_t keeb_enabled;
 static uint8_t media_enabled;
 
 static uint8_t ctrl_point;
+
+static uint8_t resolution_multiplier = RESOLUTION_MULTIPLIER;
+
+
+static ssize_t read_feature_report(struct bt_conn *conn, const struct bt_gatt_attr *attr, void *buf, uint16_t len, uint16_t offset);
+static ssize_t write_feature_report(struct bt_conn *conn, const struct bt_gatt_attr *attr, const void *buf, uint16_t len, uint16_t offset, uint8_t flags);
+static ssize_t read_info(struct bt_conn *conn, const struct bt_gatt_attr *attr, void *buf, uint16_t len, uint16_t offset);
+static ssize_t read_report_map(struct bt_conn *conn, const struct bt_gatt_attr *attr, void *buf, uint16_t len, uint16_t offset);
+static ssize_t read_input_report(struct bt_conn *conn, const struct bt_gatt_attr *attr, void *buf, uint16_t len, uint16_t offset);
+static ssize_t read_report(struct bt_conn *conn, const struct bt_gatt_attr *attr, void *buf, uint16_t len, uint16_t offset);
+static ssize_t write_ctrl_point(struct bt_conn *conn, const struct bt_gatt_attr *attr, const void *buf, uint16_t len, uint16_t offset, uint8_t flags);
+static void mouse_ccc_changed(const struct bt_gatt_attr *attr, uint16_t value);
+static void keeb_ccc_changed(const struct bt_gatt_attr *attr, uint16_t value);
+static void media_ccc_changed(const struct bt_gatt_attr *attr, uint16_t value);
+
+
+#if CONFIG_SAMPLE_BT_USE_AUTHENTICATION
+/* Require encryption using authenticated link-key. */
+#define SAMPLE_BT_PERM_READ BT_GATT_PERM_READ_AUTHEN
+#define SAMPLE_BT_PERM_WRITE BT_GATT_PERM_WRITE_AUTHEN
+#else
+/* Require encryption. */
+#define SAMPLE_BT_PERM_READ BT_GATT_PERM_READ_ENCRYPT
+#define SAMPLE_BT_PERM_WRITE BT_GATT_PERM_WRITE_ENCRYPT
+#endif
+
+/* HID Service Declaration */
+BT_GATT_SERVICE_DEFINE(hog_svc,
+	BT_GATT_PRIMARY_SERVICE(BT_UUID_HIDS),
+	BT_GATT_CHARACTERISTIC(
+		BT_UUID_HIDS_INFO,
+		BT_GATT_CHRC_READ,
+		BT_GATT_PERM_READ,
+		read_info,
+		NULL,
+		&info
+	),
+	BT_GATT_CHARACTERISTIC(
+		 BT_UUID_HIDS_REPORT_MAP,
+		 BT_GATT_CHRC_READ,
+		 BT_GATT_PERM_READ,
+		read_report_map,
+		NULL,
+		NULL
+	),
+
+	/* Keyboard */
+    BT_GATT_CHARACTERISTIC(
+		BT_UUID_HIDS_REPORT,
+		BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
+		SAMPLE_BT_PERM_READ,
+		read_input_report,
+		NULL,
+		NULL
+	),
+    BT_GATT_CCC(keeb_ccc_changed, SAMPLE_BT_PERM_READ | SAMPLE_BT_PERM_WRITE),
+    BT_GATT_DESCRIPTOR(
+		BT_UUID_HIDS_REPORT_REF,
+		BT_GATT_PERM_READ,
+		read_report,
+		NULL,
+		&keeb_input
+	),
+
+    /* Mouse */
+    BT_GATT_CHARACTERISTIC(
+		BT_UUID_HIDS_REPORT,
+		BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
+		SAMPLE_BT_PERM_READ,
+		read_input_report,
+		NULL,
+		NULL
+	),
+    BT_GATT_CCC(mouse_ccc_changed, SAMPLE_BT_PERM_READ | SAMPLE_BT_PERM_WRITE),
+    BT_GATT_DESCRIPTOR(
+		BT_UUID_HIDS_REPORT_REF,
+		BT_GATT_PERM_READ,
+		read_report,
+		NULL,
+		&mouse_input
+	),
+	BT_GATT_CHARACTERISTIC(
+        BT_UUID_HIDS_REPORT,
+        BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE,
+        SAMPLE_BT_PERM_READ | SAMPLE_BT_PERM_WRITE,
+        read_feature_report,
+        write_feature_report,
+        &resolution_multiplier
+    ),
+    BT_GATT_DESCRIPTOR(
+        BT_UUID_HIDS_REPORT_REF,
+        BT_GATT_PERM_READ,
+        read_report,
+        NULL,
+        &mouse_feat
+    ),
+
+    /* Media */
+    BT_GATT_CHARACTERISTIC(
+		 BT_UUID_HIDS_REPORT,
+		 BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
+		 SAMPLE_BT_PERM_READ,
+		 read_input_report,
+		 NULL,
+		 NULL
+	),
+    BT_GATT_CCC(media_ccc_changed, SAMPLE_BT_PERM_READ | SAMPLE_BT_PERM_WRITE),
+    BT_GATT_DESCRIPTOR(
+		BT_UUID_HIDS_REPORT_REF,
+		BT_GATT_PERM_READ,
+		read_report,
+		NULL,
+		&media_input
+	),
+
+	BT_GATT_CHARACTERISTIC(
+		BT_UUID_HIDS_CTRL_POINT,
+		BT_GATT_CHRC_WRITE_WITHOUT_RESP,
+		BT_GATT_PERM_WRITE,
+		NULL, write_ctrl_point, &ctrl_point
+	),
+);
 
 
 static ssize_t read_info(
@@ -135,6 +264,7 @@ static void media_ccc_changed(const struct bt_gatt_attr *attr, uint16_t value)
 	media_enabled = (value == BT_GATT_CCC_NOTIFY) ? 1 : 0;
 }
 
+
 static ssize_t read_input_report(
 	struct bt_conn *conn,
 	const struct bt_gatt_attr *attr,
@@ -144,6 +274,7 @@ static ssize_t read_input_report(
 ) {
 	return bt_gatt_attr_read(conn, attr, buf, len, offset, NULL, 0);
 }
+
 
 static ssize_t write_ctrl_point(
 	struct bt_conn *conn,
@@ -164,97 +295,38 @@ static ssize_t write_ctrl_point(
 	return len;
 }
 
-#if CONFIG_SAMPLE_BT_USE_AUTHENTICATION
-/* Require encryption using authenticated link-key. */
-#define SAMPLE_BT_PERM_READ BT_GATT_PERM_READ_AUTHEN
-#define SAMPLE_BT_PERM_WRITE BT_GATT_PERM_WRITE_AUTHEN
-#else
-/* Require encryption. */
-#define SAMPLE_BT_PERM_READ BT_GATT_PERM_READ_ENCRYPT
-#define SAMPLE_BT_PERM_WRITE BT_GATT_PERM_WRITE_ENCRYPT
-#endif
 
-/* HID Service Declaration */
-BT_GATT_SERVICE_DEFINE(hog_svc,
-	BT_GATT_PRIMARY_SERVICE(BT_UUID_HIDS),
-	BT_GATT_CHARACTERISTIC(
-		BT_UUID_HIDS_INFO,
-		BT_GATT_CHRC_READ,
-		BT_GATT_PERM_READ,
-		read_info,
-		NULL,
-		&info
-	),
-	BT_GATT_CHARACTERISTIC(
-		 BT_UUID_HIDS_REPORT_MAP,
-		 BT_GATT_CHRC_READ,
-		 BT_GATT_PERM_READ,
-		read_report_map,
-		NULL,
-		NULL
-	),
+static ssize_t read_feature_report(
+	struct bt_conn *conn,
+	const struct bt_gatt_attr *attr,
+	void *buf,
+	uint16_t len,
+	uint16_t offset
+) {
+	LOG_INF("READ_FEATURE: multiplier set to max");
+	return bt_gatt_attr_read(
+		conn,
+		attr,
+		buf,
+		len,
+		offset,
+		&resolution_multiplier,
+		sizeof(resolution_multiplier)
+	);
+}
 
-	/* Keyboard */
-    BT_GATT_CHARACTERISTIC(
-		BT_UUID_HIDS_REPORT,
-		BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
-		SAMPLE_BT_PERM_READ,
-		read_input_report,
-		NULL,
-		NULL
-	),
-    BT_GATT_CCC(keeb_ccc_changed, SAMPLE_BT_PERM_READ | SAMPLE_BT_PERM_WRITE),
-    BT_GATT_DESCRIPTOR(
-		BT_UUID_HIDS_REPORT_REF,
-		BT_GATT_PERM_READ,
-		read_report,
-		NULL,
-		&keeb_input
-	),
 
-    /* Mouse */
-    BT_GATT_CHARACTERISTIC(
-		BT_UUID_HIDS_REPORT,
-		BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
-		SAMPLE_BT_PERM_READ,
-		read_input_report,
-		NULL,
-		NULL
-	),
-    BT_GATT_CCC(mouse_ccc_changed, SAMPLE_BT_PERM_READ | SAMPLE_BT_PERM_WRITE),
-    BT_GATT_DESCRIPTOR(
-		BT_UUID_HIDS_REPORT_REF,
-		BT_GATT_PERM_READ,
-		read_report,
-		NULL,
-		&mouse_input
-	),
-
-    /* Media */
-    BT_GATT_CHARACTERISTIC(
-		 BT_UUID_HIDS_REPORT,
-		 BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
-		 SAMPLE_BT_PERM_READ,
-		 read_input_report,
-		 NULL,
-		 NULL
-	),
-    BT_GATT_CCC(media_ccc_changed, SAMPLE_BT_PERM_READ | SAMPLE_BT_PERM_WRITE),
-    BT_GATT_DESCRIPTOR(
-		BT_UUID_HIDS_REPORT_REF,
-		BT_GATT_PERM_READ,
-		read_report,
-		NULL,
-		&media_input
-	),
-
-	BT_GATT_CHARACTERISTIC(
-		BT_UUID_HIDS_CTRL_POINT,
-		BT_GATT_CHRC_WRITE_WITHOUT_RESP,
-		BT_GATT_PERM_WRITE,
-		NULL, write_ctrl_point, &ctrl_point
-	),
-);
+static ssize_t write_feature_report(
+	struct bt_conn *conn,
+	const struct bt_gatt_attr *attr,
+	const void *buf,
+	uint16_t len,
+	uint16_t offset,
+	uint8_t flags
+) {
+	LOG_INF("WRITE_FEATURE: device reported val(%d) len(%d),", ((const uint8_t*)buf)[0], len);
+    return len;
+}
 
 
 const struct bt_gatt_service_static hog_init()
