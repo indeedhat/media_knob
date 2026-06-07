@@ -4,11 +4,12 @@
 #include <zephyr/input/input.h>
 #include <zephyr/settings/settings.h>
 #include <zephyr/drivers/gpio.h>
+#include <zephyr/kernel.h>
 
 #include "hid.h"
 #include "bt.h"
 #include "as5600.h"
-#include "zephyr/kernel.h"
+#include "battery.h"
 
 
 #define MEDIA_DEBOUNCE_TIME 300
@@ -74,6 +75,11 @@ int main(void)
 	if (err) {
 		printk("Bluetooth init failed (err %d)\n", err);
 		return 0;
+	}
+
+	err = init_battery_level();
+	if (err) {
+		LOG_INF("Failed to init battery report loop");
 	}
 
 	err = as5600_init(device_state.as5600);

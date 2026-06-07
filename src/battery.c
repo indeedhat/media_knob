@@ -1,0 +1,71 @@
+
+
+#include "zephyr/kernel.h"
+#include "zephyr/sys/util.h"
+#include <zephyr/bluetooth/services/bas.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/adc.h>
+
+
+#define CLAMP_MAX 4200
+#define CLAMP_MIN 3000
+#define USB_CONNECTED_MV 4400
+#define VOLTAGE_DIVIDER 5
+#define POLL_INTERVAL_M 5
+
+
+static const struct adc_dt_spec adc_channel = ADC_DT_SPEC_GET(DT_PATH(zephyr_user));
+
+
+static void update_cb(struct k_work *work);
+static int read_battery_percent();
+
+
+static K_WORK_DELAYABLE_DEFINE(battery_update_work, update_cb);
+
+
+int init_battery_level()
+{
+	return k_work_schedule(&battery_update_work, K_NO_WAIT);
+};
+
+
+static void update_cb(struct k_work *work)
+{
+	int level = read_battery_percent();
+	if (level >= 0) {
+		bt_bas_set_battery_level(level);
+	}
+
+	k_work_schedule(&battery_update_work, K_MINUTES(POLL_INTERVAL_M));
+}
+
+
+static int read_battery_percent()
+{
+	int16_t sample;
+	int32_t mv;
+
+	struct adc_sequence seq = {
+		.buffer = &sample,
+		.buffer_size = sizeof(sample),
+	};
+
+	adc_sequence_init_dt(&adc_channel, &seq);
+	adc_channel_setup_dt(&adc_channel);
+	adc_read(adc_channel.dev, &seq);
+
+	mv = sample;
+	adc_raw_to_millivolts(adc_ref_internal(adc_channel.dev), ADC_GAIN_1_6, 12, &mv);
+	mv *= VOLTAGE_DIVIDER;
+
+	if (mv > USB_CONNECTED_MV) {
+		return -1;
+	}
+
+	mv = CLAMP(mv, CLAMP_MIN, CLAMP_MAX);
+	return (mv - CLAMP_MIN) * 100 / (CLAMP_MAX - CLAMP_MIN);
+}
+
+
+
