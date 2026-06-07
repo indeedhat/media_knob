@@ -1,9 +1,14 @@
 # Media Knob
 A little HID device to control media and scrolling.
 
+![media knob](assets/media-knob.jpg)
+
+## Build Guide
+[Build Guide found heer](build-guide.md)
+
 ## Controls
 ### Scroll mode
-- spin for high def scrolling
+- spin for high resolution scrolling
 - press and spin to zoom
 
 ### Media Mode
@@ -21,17 +26,19 @@ A little HID device to control media and scrolling.
     - [x] play/pause
     - [x] volume
     - [x] next/prev
-- [ ] mode switching (scroll/media)
-    - [x] switch between scroll and media mode
-    - [ ] save mode to eeprom so the state is restored on startup
-- [ ] bluetooth connectivity
+- [x] mode switching (scroll/media)
+- [ ] bluetooth
+    - [x] Connect via bluetooth
     - [ ] low power mode
+- [ ] usb
+    - [x] get usb working alone
+    - [ ] get usb working along side bluetooth
 
 ### Hardware
 - [x] connect as5600 sensor
 - [x] trigger a button when you press on the dial
 - [x] mode switching button
-- [ ] sort out battery
+- [x] sort out battery
 
 ### Cad
 - [x] dial
