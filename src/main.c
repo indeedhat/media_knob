@@ -11,7 +11,7 @@
 #include "zephyr/kernel.h"
 
 
-#define MEDIA_DEBOUNCE_TIME 100
+#define MEDIA_DEBOUNCE_TIME 300
 #define MEDIA_DOUBLE_TAP_INTERVAL 500
 
 #define SCROLL_POLL_DELAY 10
@@ -143,7 +143,7 @@ void media_action(int16_t angle)
 	bool should_debounce = now < last_seek_time + MEDIA_DEBOUNCE_TIME;
 
 	if (mod_state) {
-		if (should_debounce {
+		if (should_debounce) {
 			last_seek_time = now;
 			return;
 		}

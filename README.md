@@ -46,3 +46,12 @@ A little HID device to control media and scrolling.
 It might be nice to have a macro mode that lets you configure what the dial does in an application
 running on the host device.
 
+
+## Wiring
+### as5600
+- scl -> 011 - yellow
+- sda -> 100 - green
+
+### input
+- mode -> 111 - blue
+- mod  -> 010 - white

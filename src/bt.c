@@ -2,38 +2,40 @@
 #include <zephyr/types.h>
 #include <stddef.h>
 #include <string.h>
-#include <errno.h>
 #include <zephyr/sys/printk.h>
 #include <zephyr/sys/byteorder.h>
 #include <zephyr/kernel.h>
-
 #include <zephyr/settings/settings.h>
-
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/hci.h>
 #include <zephyr/bluetooth/conn.h>
 #include <zephyr/bluetooth/uuid.h>
 #include <zephyr/bluetooth/gatt.h>
+#include <zephyr/logging/log.h>
 
 #include "bt.h"
 #include "hid.h"
 #include "hog.h"
 
 
-#define KEEB_ATTR_IDX  6
-#define MOUSE_ATTR_IDX 10
-#define MEDIA_ATTR_IDX 14
+LOG_MODULE_REGISTER(bluetooth, LOG_LEVEL_DBG);
 
 
 static const struct bt_data ad[] = {
 	BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
-	BT_DATA_BYTES(BT_DATA_UUID16_ALL,
-		      BT_UUID_16_ENCODE(BT_UUID_HIDS_VAL),
-		      BT_UUID_16_ENCODE(BT_UUID_BAS_VAL)),
+	BT_DATA_BYTES(
+		BT_DATA_UUID16_ALL,
+		BT_UUID_16_ENCODE(BT_UUID_HIDS_VAL),
+		BT_UUID_16_ENCODE(BT_UUID_BAS_VAL)
+	),
 };
 
 static const struct bt_data sd[] = {
-	BT_DATA(BT_DATA_NAME_COMPLETE, CONFIG_BT_DEVICE_NAME, sizeof(CONFIG_BT_DEVICE_NAME) - 1),
+	BT_DATA(
+		BT_DATA_NAME_COMPLETE,
+		CONFIG_BT_DEVICE_NAME,
+		sizeof(CONFIG_BT_DEVICE_NAME) - 1
+	),
 };
 
 
@@ -44,33 +46,45 @@ struct bt_gatt_service_static hog_ctx;
 static void connected(struct bt_conn *conn, uint8_t err)
 {
 	if (err) {
-		printk("Failed to connect to %s, err 0x%02x %s\n", bt_conn_dst_str(conn),
-		       err, bt_hci_err_to_str(err));
+		LOG_ERR("Failed to connect to %s, err 0x%02x %s\n",
+			bt_conn_dst_str(conn),
+			err,
+			bt_hci_err_to_str(err)
+		);
 		return;
 	}
 
-	printk("Connected %s\n", bt_conn_dst_str(conn));
+	LOG_INF("Connected %s\n", bt_conn_dst_str(conn));
 	is_connected = true;
 
 	if (bt_conn_set_security(conn, BT_SECURITY_L2)) {
-		printk("Failed to set security\n");
+		LOG_ERR("Failed to set security\n");
 	}
 }
 
 static void disconnected(struct bt_conn *conn, uint8_t reason)
 {
-	printk("Disconnected from %s, reason 0x%02x %s\n", bt_conn_dst_str(conn),
-	       reason, bt_hci_err_to_str(reason));
+	LOG_INF("Disconnected from %s, reason 0x%02x %s\n",
+		bt_conn_dst_str(conn),
+		reason,
+		bt_hci_err_to_str(reason)
+	);
 }
 
-static void security_changed(struct bt_conn *conn, bt_security_t level,
-			     enum bt_security_err err)
-{
+static void security_changed(
+	struct bt_conn *conn,
+	bt_security_t level,
+	enum bt_security_err err
+) {
 	if (!err) {
-		printk("Security changed: %s level %u\n", bt_conn_dst_str(conn), level);
+		LOG_INF("Security changed: %s level %u\n", bt_conn_dst_str(conn), level);
 	} else {
-		printk("Security failed: %s level %u err %s(%d)\n", bt_conn_dst_str(conn), level,
-		       bt_security_err_to_str(err), err);
+		LOG_ERR("Security failed: %s level %u err %s(%d)\n",
+			bt_conn_dst_str(conn),
+			level,
+			bt_security_err_to_str(err),
+			err
+		);
 	}
 }
 
@@ -83,11 +97,11 @@ BT_CONN_CB_DEFINE(conn_callbacks) = {
 static void bt_ready(int err)
 {
 	if (err) {
-		printk("Bluetooth init failed (err %d)\n", err);
+		LOG_ERR("Bluetooth init failed (err %d)\n", err);
 		return;
 	}
 
-	printk("Bluetooth initialized\n");
+	LOG_INF("Bluetooth initialized\n");
 
 	hog_ctx = hog_init();
 
@@ -97,21 +111,21 @@ static void bt_ready(int err)
 
 	err = bt_le_adv_start(BT_LE_ADV_CONN_FAST_1, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
 	if (err) {
-		printk("Advertising failed to start (err %d)\n", err);
+		LOG_ERR("Advertising failed to start (err %d)\n", err);
 		return;
 	}
 
-	printk("Advertising successfully started\n");
+	LOG_INF("Advertising successfully started\n");
 }
 
 static void auth_passkey_display(struct bt_conn *conn, unsigned int passkey)
 {
-	printk("Passkey for %s: %06u\n", bt_conn_dst_str(conn), passkey);
+	LOG_INF("Passkey for %s: %06u\n", bt_conn_dst_str(conn), passkey);
 }
 
 static void auth_cancel(struct bt_conn *conn)
 {
-	printk("Pairing cancelled: %s\n", bt_conn_dst_str(conn));
+	LOG_INF("Pairing cancelled: %s\n", bt_conn_dst_str(conn));
 }
 
 static struct bt_conn_auth_cb auth_cb_display = {
@@ -153,7 +167,7 @@ int bt_init()
 
 	if (IS_ENABLED(CONFIG_SAMPLE_BT_USE_AUTHENTICATION)) {
 		bt_conn_auth_cb_register(&auth_cb_display);
-		printk("Bluetooth authentication callbacks registered.\n");
+		LOG_INF("Bluetooth authentication callbacks registered.\n");
 	}
 
 	return 0;
