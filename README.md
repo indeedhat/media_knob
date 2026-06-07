@@ -30,7 +30,8 @@ A little HID device to control media and scrolling.
 - [ ] bluetooth
     - [x] Connect via bluetooth
     - [ ] low power mode
-    - [ ] properly report battery life
+        - in progress
+    - [x] properly report battery life
 - [ ] usb
     - [x] get usb working alone
     - [ ] get usb working along side bluetooth
