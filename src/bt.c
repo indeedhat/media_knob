@@ -58,8 +58,9 @@ static void connected(struct bt_conn *conn, uint8_t err)
 	LOG_INF("Connected %s\n", bt_conn_dst_str(conn));
 	is_connected = true;
 
-	if (bt_conn_set_security(conn, BT_SECURITY_L2)) {
-		LOG_ERR("Failed to set security\n");
+	int e = bt_conn_set_security(conn, BT_SECURITY_L2);
+	if (e) {
+		LOG_ERR("Failed to set security %d\n", e);
 	}
 }
 
@@ -80,11 +81,8 @@ static void security_changed(
 	if (!err) {
 		LOG_INF("Security changed: %s level %u\n", bt_conn_dst_str(conn), level);
 	} else {
-		LOG_ERR("Security failed: %s level %u err %s(%d)\n",
-			bt_conn_dst_str(conn),
-			level,
-			bt_security_err_to_str(err),
-			err
+		LOG_ERR("Security failed: level %u err=%d",
+			level, (int)err
 		);
 	}
 }
@@ -156,6 +154,21 @@ int bt_submit_report(const uint16_t size, const uint8_t *const report)
 	return 0;
 }
 
+static void pairing_complete(struct bt_conn *conn, bool bonded)
+{
+    LOG_INF("Pairing completed. bonded=%d", bonded);
+}
+
+static void pairing_failed(struct bt_conn *conn, enum bt_security_err reason)
+{
+    LOG_ERR("Pairing failed. reason=%d", reason);
+}
+
+static struct bt_conn_auth_info_cb auth_info_cb = {
+    .pairing_complete = pairing_complete,
+    .pairing_failed = pairing_failed,
+};
+
 
 int bt_init()
 {
@@ -165,6 +178,8 @@ int bt_init()
 	if (err) {
 		return err;
 	}
+
+	bt_conn_auth_info_cb_register(&auth_info_cb);
 
 	if (IS_ENABLED(CONFIG_SAMPLE_BT_USE_AUTHENTICATION)) {
 		bt_conn_auth_cb_register(&auth_cb_display);

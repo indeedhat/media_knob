@@ -45,7 +45,7 @@ struct hids_report {
 } __packed;
 
 static struct hids_info info = {
-	.version = 0x0000,
+	.version = 0x0111,
 	.code = 0x00,
 	.flags = HIDS_NORMALLY_CONNECTABLE,
 };
