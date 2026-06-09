@@ -7,7 +7,9 @@
 LOG_MODULE_REGISTER(as5600, LOG_LEVEL_DBG);
 
 
-int16_t as5600_prev_pos;
+int16_t prev_pos;
+int16_t prev_delta;
+int16_t jitter_count;
 
 
 int as5600_read(const struct device *dev)
@@ -19,8 +21,8 @@ int as5600_read(const struct device *dev)
 	}
 
 	struct as5600_dev_data *dev_data = dev->data;
-	int16_t delta = dev_data->position - as5600_prev_pos;
-	as5600_prev_pos = dev_data->position;
+	int16_t delta = dev_data->position - prev_pos;
+	prev_pos = dev_data->position;
 
 	if (delta > 2048) {
 		delta -= 4096;
@@ -28,9 +30,33 @@ int as5600_read(const struct device *dev)
 		delta += 4096;
 	}
 
-	if (delta <= DEAD_ZONE && delta >= -DEAD_ZONE) {
+#if defined AS5600_JITTER_COMPENSATION
+	if (delta == 0) {
 		return 0;
 	}
+
+	if (jitter_count >= AS5600_JITTER_THRESHOLD) {
+		if (delta <= AS5600_JITTER_DEAD_ZONE && delta >= -AS5600_JITTER_DEAD_ZONE) {
+			LOG_DBG("jitter compensated");
+			return 0;
+		}
+
+		jitter_count = 0;
+	}
+
+	if (prev_delta == -delta) {
+		jitter_count++;
+	}
+#endif
+
+#if defined AS5600_DEAD_ZONE
+	if (delta <= AS5600_DEAD_ZONE && delta >= -AS5600_DEAD_ZONE) {
+		LOG_DBG("DEAD ZONE %d", delta);
+		return 0;
+	}
+#endif
+
+	prev_delta = delta;
 
 	return delta;
 }

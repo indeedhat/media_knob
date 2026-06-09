@@ -6,26 +6,20 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/kernel.h>
 
+#include "main.h"
 #include "hid.h"
 #include "bt.h"
 #include "as5600.h"
 #include "battery.h"
 
 
-#define MEDIA_DEBOUNCE_TIME 300
-#define MEDIA_DOUBLE_TAP_INTERVAL 500
+static void scroll_action(int16_t angle);
+static void media_action(int16_t angle);
+static void button_input_cb(struct input_event *evt, void *user_data);
+static void trigger_media_event(int action);
+static void init_settings();
+static void submit_report(const char *trigger_name, const uint16_t size, const uint8_t *const report);
 
-#define SCROLL_POLL_DELAY 10
-#define MEDIA_POLL_DELAY 160
-
-#define SETTINGS_MODE "mode"
-
-
-enum op_modes {
-	MODE_SCROLL,
-	MODE_MEDIA,
-	MODE_COUNT,
-};
 
 int current_mode = MODE_SCROLL;
 int mod_state = 0;
@@ -33,10 +27,6 @@ int mod_state = 0;
 int64_t last_seek_time = 0;
 int64_t last_mod_up_time = 0;
 
-
-typedef struct {
-	const struct device *as5600;
-} devices;
 
 devices device_state = {
 	.as5600 = DEVICE_DT_GET_ANY(ams_as5600),
@@ -49,18 +39,6 @@ static const struct gpio_dt_spec vcc_enable = {
 };
 
 
-void scroll_action(int16_t angle);
-void media_action(int16_t angle);
-void button_input_cb(struct input_event *evt, void *user_data);
-void trigger_media_event(int action);
-void init_settings();
-void submit_report(
-	const char *trigger_name,
-	const uint16_t size,
-	const uint8_t *const report
-);
-
-
 LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 INPUT_CALLBACK_DEFINE(NULL, button_input_cb, NULL);
 
@@ -70,6 +48,10 @@ int main(void)
 	int err;
 
 	gpio_pin_configure_dt(&vcc_enable, GPIO_OUTPUT_ACTIVE);
+
+#if defined SAVE_MODE_STATE
+	init_settings();
+#endif
 
 	err = bt_init();
 	if (err) {
@@ -106,7 +88,7 @@ int main(void)
 }
 
 
-void init_settings()
+static void init_settings()
 {
 	int size = settings_load_one(SETTINGS_MODE, &current_mode, sizeof(current_mode));
 	current_mode %= MODE_COUNT;
@@ -117,11 +99,12 @@ void init_settings()
 }
 
 
-void scroll_action(int16_t angle)
+static void scroll_action(int16_t angle)
 {
 	if (angle == 0) {
 		return;
 	}
+	LOG_INF("angle %d", angle);
 
 	uint8_t report[MOUSE_REPORT_SIZE];
 	report[MOUSE_REPORT_IDX] = MOUSE_REPORT_ID;
@@ -131,7 +114,7 @@ void scroll_action(int16_t angle)
 }
 
 
-void media_action(int16_t angle)
+static void media_action(int16_t angle)
 {
 	int action;
 	uint8_t report[MEDIA_REPORT_SIZE];
@@ -173,7 +156,7 @@ void media_action(int16_t angle)
 }
 
 
-void button_input_cb(struct input_event *evt, void *user_data)
+static void button_input_cb(struct input_event *evt, void *user_data)
 {
 	if (evt->sync == 0) {
 		return;
@@ -226,7 +209,8 @@ void button_input_cb(struct input_event *evt, void *user_data)
 	}
 }
 
-void submit_report(
+
+static void submit_report(
 	const char *trigger_name,
 	const uint16_t size,
 	const uint8_t *const report
@@ -239,12 +223,13 @@ void submit_report(
 			LOG_ERR("failed to send %s event: %d", trigger_name, err);
 			return;
 		} else {
-			LOG_INF("%s event sent", trigger_name);
+			LOG_DBG("%s event sent", trigger_name);
 		}
 	}
 }
 
-void trigger_media_event(int action)
+
+static void trigger_media_event(int action)
 {
 	int8_t report[MEDIA_REPORT_SIZE];
 	report[MEDIA_REPORT_IDX] = MEDIA_REPORT_ID;

@@ -65,6 +65,9 @@ static const uint8_t hid_report_desc[] = 	{
 				HID_REPORT_SIZE(8),
 				HID_REPORT_COUNT(1),
 				HID_FEATURE(0x02), // (Const, Var, Rel)
+	//
+				HID_ITEM(HID_ITEM_TAG_PHYSICAL_MIN, HID_ITEM_TYPE_GLOBAL, 1), 0x00,
+				HID_ITEM(HID_ITEM_TAG_PHYSICAL_MAX, HID_ITEM_TYPE_GLOBAL, 1), 0x00,
 
 				// Scroll Position
 				HID_USAGE_PAGE(HID_USAGE_GEN_DESKTOP),

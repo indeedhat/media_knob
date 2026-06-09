@@ -19,7 +19,21 @@
 #include "hog.h"
 
 
+static void connected(struct bt_conn *conn, uint8_t err);
+static void disconnected(struct bt_conn *conn, uint8_t reason);
+static void bt_ready(int err);
+static void auth_passkey_display(struct bt_conn *conn, unsigned int passkey);
+static void auth_cancel(struct bt_conn *conn);
+static void pairing_complete(struct bt_conn *conn, bool bonded);
+static void pairing_failed(struct bt_conn *conn, enum bt_security_err reason);
+static void security_changed(struct bt_conn *conn, bt_security_t level, enum bt_security_err err);
+static void advertise();
+static void advertise_worker_cb(struct k_work *work);
+
+
 LOG_MODULE_REGISTER(bluetooth, LOG_LEVEL_DBG);
+
+K_WORK_DEFINE(advertise_worker, advertise_worker_cb);
 
 
 static const struct bt_data ad[] = {
@@ -43,6 +57,68 @@ static const struct bt_data sd[] = {
 static bool is_connected;
 
 struct bt_gatt_service_static hog_ctx;
+
+
+BT_CONN_CB_DEFINE(conn_callbacks) = {
+	.connected = connected,
+	.disconnected = disconnected,
+	.security_changed = security_changed,
+};
+
+static struct bt_conn_auth_info_cb auth_info_cb = {
+    .pairing_complete = pairing_complete,
+    .pairing_failed = pairing_failed,
+};
+
+static struct bt_conn_auth_cb auth_cb_display = {
+	.passkey_display = auth_passkey_display,
+	.passkey_entry = NULL,
+	.cancel = auth_cancel,
+};
+
+
+int bt_init()
+{
+	int err;
+
+	err = bt_enable(bt_ready);
+	if (err) {
+		return err;
+	}
+
+	bt_conn_auth_info_cb_register(&auth_info_cb);
+
+	if (IS_ENABLED(CONFIG_SAMPLE_BT_USE_AUTHENTICATION)) {
+		bt_conn_auth_cb_register(&auth_cb_display);
+		LOG_INF("Bluetooth authentication callbacks registered.\n");
+	}
+
+	return 0;
+}
+
+
+bool bt_connected()
+{
+	return is_connected;
+}
+
+
+int bt_submit_report(const uint16_t size, const uint8_t *const report)
+{
+	uint8_t tmp[size - 1];
+	memcpy(tmp, report + 1, size - 1);
+
+	if (report[0] == KEEB_REPORT_ID) {
+		return bt_gatt_notify(NULL, &hog_ctx.attrs[BT_KEEB_ATTR_IDX], tmp, size);
+	} else if (report[0] == MOUSE_REPORT_ID) {
+		return bt_gatt_notify(NULL, &hog_ctx.attrs[BT_MOUSE_ATTR_IDX], tmp, size);
+	} else if (report[0] == MEDIA_REPORT_ID) {
+		return bt_gatt_notify(NULL, &hog_ctx.attrs[BT_MEDIA_ATTR_IDX], tmp, size);
+	}
+
+	return 0;
+}
+
 
 static void connected(struct bt_conn *conn, uint8_t err)
 {
@@ -71,7 +147,12 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
 		reason,
 		bt_hci_err_to_str(reason)
 	);
+
+	is_connected = false;
+
+	k_work_submit(&advertise_worker);
 }
+
 
 static void security_changed(
 	struct bt_conn *conn,
@@ -87,11 +168,6 @@ static void security_changed(
 	}
 }
 
-BT_CONN_CB_DEFINE(conn_callbacks) = {
-	.connected = connected,
-	.disconnected = disconnected,
-	.security_changed = security_changed,
-};
 
 static void bt_ready(int err)
 {
@@ -108,7 +184,40 @@ static void bt_ready(int err)
 		settings_load();
 	}
 
-	err = bt_le_adv_start(BT_LE_ADV_CONN_FAST_1, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
+	advertise();
+}
+
+
+static void auth_passkey_display(struct bt_conn *conn, unsigned int passkey)
+{
+	LOG_INF("Passkey for %s: %06u\n", bt_conn_dst_str(conn), passkey);
+}
+
+
+static void auth_cancel(struct bt_conn *conn)
+{
+	LOG_INF("Pairing cancelled: %s\n", bt_conn_dst_str(conn));
+}
+
+
+static void pairing_complete(struct bt_conn *conn, bool bonded)
+{
+    LOG_INF("Pairing completed. bonded=%d", bonded);
+}
+
+
+static void pairing_failed(struct bt_conn *conn, enum bt_security_err reason)
+{
+    LOG_ERR("Pairing failed. reason=%d", reason);
+}
+
+
+static void advertise()
+{
+	// Don't care if this fails
+	bt_le_adv_stop();
+
+	int err = bt_le_adv_start(BT_LE_ADV_CONN_FAST_1, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
 	if (err) {
 		LOG_ERR("Advertising failed to start (err %d)\n", err);
 		return;
@@ -117,75 +226,8 @@ static void bt_ready(int err)
 	LOG_INF("Advertising successfully started\n");
 }
 
-static void auth_passkey_display(struct bt_conn *conn, unsigned int passkey)
+
+static void advertise_worker_cb(struct k_work *work)
 {
-	LOG_INF("Passkey for %s: %06u\n", bt_conn_dst_str(conn), passkey);
+    advertise();
 }
-
-static void auth_cancel(struct bt_conn *conn)
-{
-	LOG_INF("Pairing cancelled: %s\n", bt_conn_dst_str(conn));
-}
-
-static struct bt_conn_auth_cb auth_cb_display = {
-	.passkey_display = auth_passkey_display,
-	.passkey_entry = NULL,
-	.cancel = auth_cancel,
-};
-
-bool bt_connected()
-{
-	return is_connected;
-}
-
-int bt_submit_report(const uint16_t size, const uint8_t *const report)
-{
-	uint8_t tmp[size - 1];
-	memcpy(tmp, report + 1, size - 1);
-
-	if (report[0] == KEEB_REPORT_ID) {
-		return bt_gatt_notify(NULL, &hog_ctx.attrs[KEEB_ATTR_IDX], tmp, size);
-	} else if (report[0] == MOUSE_REPORT_ID) {
-		return bt_gatt_notify(NULL, &hog_ctx.attrs[MOUSE_ATTR_IDX], tmp, size);
-	} else if (report[0] == MEDIA_REPORT_ID) {
-		return bt_gatt_notify(NULL, &hog_ctx.attrs[MEDIA_ATTR_IDX], tmp, size);
-	}
-
-	return 0;
-}
-
-static void pairing_complete(struct bt_conn *conn, bool bonded)
-{
-    LOG_INF("Pairing completed. bonded=%d", bonded);
-}
-
-static void pairing_failed(struct bt_conn *conn, enum bt_security_err reason)
-{
-    LOG_ERR("Pairing failed. reason=%d", reason);
-}
-
-static struct bt_conn_auth_info_cb auth_info_cb = {
-    .pairing_complete = pairing_complete,
-    .pairing_failed = pairing_failed,
-};
-
-
-int bt_init()
-{
-	int err;
-
-	err = bt_enable(bt_ready);
-	if (err) {
-		return err;
-	}
-
-	bt_conn_auth_info_cb_register(&auth_info_cb);
-
-	if (IS_ENABLED(CONFIG_SAMPLE_BT_USE_AUTHENTICATION)) {
-		bt_conn_auth_cb_register(&auth_cb_display);
-		LOG_INF("Bluetooth authentication callbacks registered.\n");
-	}
-
-	return 0;
-}
-
