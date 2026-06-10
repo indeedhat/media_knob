@@ -22,13 +22,14 @@
 static void connected(struct bt_conn *conn, uint8_t err);
 static void disconnected(struct bt_conn *conn, uint8_t reason);
 static void bt_ready(int err);
-static void auth_passkey_display(struct bt_conn *conn, unsigned int passkey);
 static void auth_cancel(struct bt_conn *conn);
 static void pairing_complete(struct bt_conn *conn, bool bonded);
 static void pairing_failed(struct bt_conn *conn, enum bt_security_err reason);
 static void security_changed(struct bt_conn *conn, bt_security_t level, enum bt_security_err err);
 static void advertise();
 static void advertise_worker_cb(struct k_work *work);
+static void le_param_updated(struct bt_conn *conn, uint16_t interval, uint16_t latency, uint16_t timeout);
+static enum bt_security_err auth_pairing_accept(struct bt_conn *conn, const struct bt_conn_pairing_feat *const feat);
 
 
 LOG_MODULE_REGISTER(bluetooth, LOG_LEVEL_DBG);
@@ -59,10 +60,11 @@ static bool is_connected;
 struct bt_gatt_service_static hog_ctx;
 
 
-BT_CONN_CB_DEFINE(conn_callbacks) = {
+static struct bt_conn_cb conn_cb = {
 	.connected = connected,
 	.disconnected = disconnected,
 	.security_changed = security_changed,
+	.le_param_updated = le_param_updated,
 };
 
 static struct bt_conn_auth_info_cb auth_info_cb = {
@@ -71,8 +73,7 @@ static struct bt_conn_auth_info_cb auth_info_cb = {
 };
 
 static struct bt_conn_auth_cb auth_cb_display = {
-	.passkey_display = auth_passkey_display,
-	.passkey_entry = NULL,
+	.pairing_accept = auth_pairing_accept,
 	.cancel = auth_cancel,
 };
 
@@ -86,12 +87,9 @@ int bt_init()
 		return err;
 	}
 
+    bt_conn_cb_register(&conn_cb);
+    bt_conn_auth_cb_register(&auth_cb_display);
 	bt_conn_auth_info_cb_register(&auth_info_cb);
-
-	if (IS_ENABLED(CONFIG_SAMPLE_BT_USE_AUTHENTICATION)) {
-		bt_conn_auth_cb_register(&auth_cb_display);
-		LOG_INF("Bluetooth authentication callbacks registered.\n");
-	}
 
 	return 0;
 }
@@ -134,10 +132,10 @@ static void connected(struct bt_conn *conn, uint8_t err)
 	LOG_INF("Connected %s\n", bt_conn_dst_str(conn));
 	is_connected = true;
 
-	int e = bt_conn_set_security(conn, BT_SECURITY_L2);
-	if (e) {
-		LOG_ERR("Failed to set security %d\n", e);
-	}
+	// int e = bt_conn_set_security(conn, BT_SECURITY_L2);
+	// if (e) {
+	// 	LOG_ERR("Failed to set security %d\n", e);
+	// }
 }
 
 static void disconnected(struct bt_conn *conn, uint8_t reason)
@@ -188,12 +186,6 @@ static void bt_ready(int err)
 }
 
 
-static void auth_passkey_display(struct bt_conn *conn, unsigned int passkey)
-{
-	LOG_INF("Passkey for %s: %06u\n", bt_conn_dst_str(conn), passkey);
-}
-
-
 static void auth_cancel(struct bt_conn *conn)
 {
 	LOG_INF("Pairing cancelled: %s\n", bt_conn_dst_str(conn));
@@ -231,3 +223,23 @@ static void advertise_worker_cb(struct k_work *work)
 {
     advertise();
 }
+
+
+static void le_param_updated(struct bt_conn *conn, uint16_t interval, uint16_t latency,
+                             uint16_t timeout) {
+    char addr[BT_ADDR_LE_STR_LEN];
+
+    bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
+
+    LOG_DBG("%s: interval %d latency %d timeout %d", addr, interval, latency, timeout);
+}
+
+
+static enum bt_security_err auth_pairing_accept(struct bt_conn *conn, const struct bt_conn_pairing_feat *const feat) {
+    struct bt_conn_info info;
+    bt_conn_get_info(conn, &info);
+
+    LOG_DBG("role %d", info.role);
+
+    return BT_SECURITY_ERR_SUCCESS;
+};

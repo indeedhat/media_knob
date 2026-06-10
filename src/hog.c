@@ -83,15 +83,9 @@ static void keeb_ccc_changed(const struct bt_gatt_attr *attr, uint16_t value);
 static void media_ccc_changed(const struct bt_gatt_attr *attr, uint16_t value);
 
 
-#if CONFIG_SAMPLE_BT_USE_AUTHENTICATION
-/* Require encryption using authenticated link-key. */
-#define SAMPLE_BT_PERM_READ BT_GATT_PERM_READ_AUTHEN
-#define SAMPLE_BT_PERM_WRITE BT_GATT_PERM_WRITE_AUTHEN
-#else
 /* Require encryption. */
 #define SAMPLE_BT_PERM_READ BT_GATT_PERM_READ_ENCRYPT
 #define SAMPLE_BT_PERM_WRITE BT_GATT_PERM_WRITE_ENCRYPT
-#endif
 
 /* HID Service Declaration */
 BT_GATT_SERVICE_DEFINE(hog_svc,

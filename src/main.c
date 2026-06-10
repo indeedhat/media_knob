@@ -11,6 +11,7 @@
 #include "bt.h"
 #include "as5600.h"
 #include "battery.h"
+#include "zephyr/init.h"
 
 
 static void scroll_action(int16_t angle);
@@ -43,6 +44,9 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 INPUT_CALLBACK_DEFINE(NULL, button_input_cb, NULL);
 
 
+SYS_INIT(bt_init, APPLICATION, 1);
+
+
 int main(void)
 {
 	int err;
@@ -53,15 +57,10 @@ int main(void)
 	init_settings();
 #endif
 
-	err = bt_init();
-	if (err) {
-		printk("Bluetooth init failed (err %d)\n", err);
-		return 0;
-	}
 
 	err = init_battery_level();
 	if (err) {
-		LOG_INF("Failed to init battery report loop");
+		LOG_ERR("Failed to init battery report loop");
 	}
 
 	err = as5600_init(device_state.as5600);
