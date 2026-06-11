@@ -10,4 +10,12 @@ config SAMPLE_BT_USE_AUTHENTICATION
 	  Enable the passkey authentication callback and register the GATT
 	  read and write attributes as authentication required.
 
+config KNOBLET_BT_CLEAR_BONDS_ON_START
+	bool "force clear bluetooth bonds"
+	default n
+
+config KNOBLET_SAVE_MADE_STATE
+	bool "save the current mode state to persist on restart"
+	default n
+
 source "Kconfig.zephyr"

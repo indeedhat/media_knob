@@ -53,10 +53,9 @@ int main(void)
 
 	gpio_pin_configure_dt(&vcc_enable, GPIO_OUTPUT_ACTIVE);
 
-#if defined SAVE_MODE_STATE
+#if defined CONFIG_KNOBLET_SAVE_MODE_STATE
 	init_settings();
 #endif
-
 
 	err = init_battery_level();
 	if (err) {
@@ -103,7 +102,6 @@ static void scroll_action(int16_t angle)
 	if (angle == 0) {
 		return;
 	}
-	LOG_INF("angle %d", angle);
 
 	uint8_t report[MOUSE_REPORT_SIZE];
 	report[MOUSE_REPORT_IDX] = MOUSE_REPORT_ID;

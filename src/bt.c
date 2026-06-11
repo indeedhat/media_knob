@@ -17,6 +17,7 @@
 #include "bt.h"
 #include "hid.h"
 #include "hog.h"
+#include "zephyr/bluetooth/addr.h"
 
 
 static void connected(struct bt_conn *conn, uint8_t err);
@@ -38,12 +39,17 @@ K_WORK_DEFINE(advertise_worker, advertise_worker_cb);
 
 
 static const struct bt_data ad[] = {
-	BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
-	BT_DATA_BYTES(
-		BT_DATA_UUID16_ALL,
-		BT_UUID_16_ENCODE(BT_UUID_HIDS_VAL),
-		BT_UUID_16_ENCODE(BT_UUID_BAS_VAL)
-	),
+    BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
+    BT_DATA_BYTES(
+        BT_DATA_GAP_APPEARANCE,
+        (CONFIG_BT_DEVICE_APPEARANCE & 0xff),
+        (CONFIG_BT_DEVICE_APPEARANCE >> 8)
+    ),
+    BT_DATA_BYTES(
+        BT_DATA_UUID16_ALL,
+        BT_UUID_16_ENCODE(BT_UUID_HIDS_VAL),
+        BT_UUID_16_ENCODE(BT_UUID_BAS_VAL)
+    ),
 };
 
 static const struct bt_data sd[] = {
@@ -132,10 +138,10 @@ static void connected(struct bt_conn *conn, uint8_t err)
 	LOG_INF("Connected %s\n", bt_conn_dst_str(conn));
 	is_connected = true;
 
-	// int e = bt_conn_set_security(conn, BT_SECURITY_L2);
-	// if (e) {
-	// 	LOG_ERR("Failed to set security %d\n", e);
-	// }
+// 	int e = bt_conn_set_security(conn, BT_SECURITY_L2);
+// 	if (e) {
+// 		LOG_ERR("Failed to set security %d\n", e);
+// 	}
 }
 
 static void disconnected(struct bt_conn *conn, uint8_t reason)
@@ -176,11 +182,16 @@ static void bt_ready(int err)
 
 	LOG_INF("Bluetooth initialized\n");
 
-	hog_ctx = hog_init();
-
 	if (IS_ENABLED(CONFIG_SETTINGS)) {
 		settings_load();
+
+#if defined(CONFIG_KNOBLET_BT_CLEAR_BONDS_ON_START)
+		LOG_INF("clearing bt pairs");
+		bt_unpair(BT_ID_DEFAULT, NULL);
+#endif
 	}
+
+	hog_ctx = hog_init();
 
 	advertise();
 }
@@ -201,6 +212,9 @@ static void pairing_complete(struct bt_conn *conn, bool bonded)
 static void pairing_failed(struct bt_conn *conn, enum bt_security_err reason)
 {
     LOG_ERR("Pairing failed. reason=%d", reason);
+
+	const bt_addr_le_t *dst = bt_conn_get_dst(conn);
+	bt_unpair(BT_ID_DEFAULT, dst);
 }
 
 

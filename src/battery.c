@@ -18,7 +18,12 @@ static K_WORK_DELAYABLE_DEFINE(battery_update_work, update_cb);
 
 int init_battery_level()
 {
-	return k_work_schedule(&battery_update_work, K_NO_WAIT);
+	int err = k_work_schedule(&battery_update_work, K_NO_WAIT);
+	if (err <= 1) {
+		return 0;
+	}
+
+	return err;
 };
 
 

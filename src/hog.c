@@ -192,6 +192,8 @@ static ssize_t read_info(
 	uint16_t len,
 	uint16_t offset
 ) {
+	LOG_INF("Getting to read_info");
+    LOG_INF("read_info called, security level: %d", bt_conn_get_security(conn));
 	return bt_gatt_attr_read(
 		conn,
 		attr,
@@ -211,6 +213,8 @@ static ssize_t read_report_map(
 	uint16_t len,
 	uint16_t offset
 ) {
+	LOG_INF("Getting to read_report_map");
+    LOG_INF("read_report_map called, security level: %d", bt_conn_get_security(conn));
 	return bt_gatt_attr_read(
 		conn,
 		attr,
@@ -229,6 +233,8 @@ static ssize_t read_report(
 	uint16_t len,
 	uint16_t offset
 ) {
+	LOG_INF("Getting to read_report");
+    LOG_INF("read_report called, security level: %d", bt_conn_get_security(conn));
 	return bt_gatt_attr_read(
 		conn,
 		attr,
@@ -266,6 +272,8 @@ static ssize_t read_input_report(
 	uint16_t len,
 	uint16_t offset
 ) {
+	LOG_INF("Getting to read_input_report");
+    LOG_INF("read_input_report called, security level: %d", bt_conn_get_security(conn));
 	return bt_gatt_attr_read(conn, attr, buf, len, offset, NULL, 0);
 }
 
