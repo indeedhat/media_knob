@@ -32,6 +32,7 @@ static void advertise_worker_cb(struct k_work *work);
 static void unpair_worker_cb(struct k_work *work);
 static void le_param_updated(struct bt_conn *conn, uint16_t interval, uint16_t latency, uint16_t timeout);
 static enum bt_security_err auth_pairing_accept(struct bt_conn *conn, const struct bt_conn_pairing_feat *const feat);
+static int notify_report(struct bt_conn *conn, const struct bt_gatt_attr *attr, const void *data, uint16_t len);
 
 
 LOG_MODULE_REGISTER(bluetooth, LOG_LEVEL_DBG);
@@ -64,6 +65,7 @@ static const struct bt_data sd[] = {
 
 
 static const bt_addr_le_t *unpair_addr;
+static struct bt_conn *current_conn;
 static bool is_connected;
 
 struct bt_gatt_service_static hog_ctx;
@@ -112,15 +114,19 @@ bool bt_connected()
 
 int bt_submit_report(const uint16_t size, const uint8_t *const report)
 {
+	if (!current_conn) {
+		return -ENOTCONN;
+	}
+
 	uint8_t tmp[size - 1];
 	memcpy(tmp, report + 1, size - 1);
 
 	if (report[0] == KEEB_REPORT_ID) {
-		return bt_gatt_notify(NULL, &hog_ctx.attrs[BT_KEEB_ATTR_IDX], tmp, size - 1);
+		return notify_report(current_conn, &hog_ctx.attrs[BT_KEEB_ATTR_IDX], tmp, size - 1);
 	} else if (report[0] == MOUSE_REPORT_ID) {
-		return bt_gatt_notify(NULL, &hog_ctx.attrs[BT_MOUSE_ATTR_IDX], tmp, size - 1);
+		return notify_report(current_conn, &hog_ctx.attrs[BT_MOUSE_ATTR_IDX], tmp, size - 1);
 	} else if (report[0] == MEDIA_REPORT_ID) {
-		return bt_gatt_notify(NULL, &hog_ctx.attrs[BT_MEDIA_ATTR_IDX], tmp, size - 1);
+		return notify_report(current_conn, &hog_ctx.attrs[BT_MEDIA_ATTR_IDX], tmp, size - 1);
 	}
 
 	return 0;
@@ -139,14 +145,8 @@ static void connected(struct bt_conn *conn, uint8_t err)
 	}
 
 	LOG_INF("Connected %s\n", bt_conn_dst_str(conn));
-	is_connected = true;
 
-	// macOS and Windows expect the peripheral to initiate encryption; without
-	// this call both platforms stall because GATT attrs require BT_SECURITY_L2.
-	int sec_err = bt_conn_set_security(conn, BT_SECURITY_L2);
-	if (sec_err) {
-		LOG_ERR("Security request failed (err %d)\n", sec_err);
-	}
+	current_conn = bt_conn_ref(conn);
 }
 
 static void disconnected(struct bt_conn *conn, uint8_t reason)
@@ -159,6 +159,11 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
 
 	is_connected = false;
 
+	if (current_conn) {
+		bt_conn_unref(current_conn);
+		current_conn = NULL;
+	}
+
 	k_work_submit(&advertise_worker);
 }
 
@@ -170,10 +175,11 @@ static void security_changed(
 ) {
 	if (!err) {
 		LOG_INF("Security changed: %s level %u\n", bt_conn_dst_str(conn), level);
+		if (level >= BT_SECURITY_L2) {
+			is_connected = true;
+		}
 	} else {
-		LOG_ERR("Security failed: level %u err=%d",
-			level, (int)err
-		);
+		LOG_ERR("Security failed: level %u err=%d", level, (int)err);
 	}
 }
 
@@ -218,11 +224,11 @@ static void pairing_failed(struct bt_conn *conn, enum bt_security_err reason)
 {
     LOG_ERR("Pairing failed. reason=%d", reason);
 
-	// if (reason == 4) {
-	// 	unpair_addr = bt_conn_get_dst(conn);
+	if (reason == 4) {
+		unpair_addr = bt_conn_get_dst(conn);
 
-	// 	k_work_submit(&unpair_worker);
-	// }
+		k_work_submit(&unpair_worker);
+	}
 }
 
 
@@ -276,4 +282,19 @@ static void unpair_worker_cb(struct k_work *work)
 	LOG_INF("unpairing");
     bt_unpair(BT_ID_DEFAULT, unpair_addr);
 	unpair_addr = NULL;
+}
+
+
+static int notify_report(
+	struct bt_conn *conn,
+	const struct bt_gatt_attr *attr,
+	const void *data,
+	uint16_t len
+) {
+	int err = bt_gatt_notify(conn, attr, data, len);
+	if (err == -EPERM) {
+		bt_conn_set_security(conn, BT_SECURITY_L2);
+	}
+
+	return err;
 }
