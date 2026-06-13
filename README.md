@@ -1,6 +1,8 @@
 # Media Knob
 A little HID device to control media and scrolling.
 
+Tested on linux, macos and windows
+
 ![media knob](assets/media-knob.jpg)
 
 ## Build Guide
