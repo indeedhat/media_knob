@@ -29,6 +29,7 @@ static void pairing_failed(struct bt_conn *conn, enum bt_security_err reason);
 static void security_changed(struct bt_conn *conn, bt_security_t level, enum bt_security_err err);
 static void advertise();
 static void advertise_worker_cb(struct k_work *work);
+static void unpair_worker_cb(struct k_work *work);
 static void le_param_updated(struct bt_conn *conn, uint16_t interval, uint16_t latency, uint16_t timeout);
 static enum bt_security_err auth_pairing_accept(struct bt_conn *conn, const struct bt_conn_pairing_feat *const feat);
 
@@ -36,6 +37,7 @@ static enum bt_security_err auth_pairing_accept(struct bt_conn *conn, const stru
 LOG_MODULE_REGISTER(bluetooth, LOG_LEVEL_DBG);
 
 K_WORK_DEFINE(advertise_worker, advertise_worker_cb);
+K_WORK_DEFINE(unpair_worker, unpair_worker_cb);
 
 
 static const struct bt_data ad[] = {
@@ -61,6 +63,7 @@ static const struct bt_data sd[] = {
 };
 
 
+static const bt_addr_le_t *unpair_addr;
 static bool is_connected;
 
 struct bt_gatt_service_static hog_ctx;
@@ -138,10 +141,12 @@ static void connected(struct bt_conn *conn, uint8_t err)
 	LOG_INF("Connected %s\n", bt_conn_dst_str(conn));
 	is_connected = true;
 
-	// err = bt_conn_set_security(conn, BT_SECURITY_L2);
-	// if (err) {
-	// 	LOG_ERR("Failed to set security: %d", err);
-	// }
+	// macOS and Windows expect the peripheral to initiate encryption; without
+	// this call both platforms stall because GATT attrs require BT_SECURITY_L2.
+	int sec_err = bt_conn_set_security(conn, BT_SECURITY_L2);
+	if (sec_err) {
+		LOG_ERR("Security request failed (err %d)\n", sec_err);
+	}
 }
 
 static void disconnected(struct bt_conn *conn, uint8_t reason)
@@ -212,6 +217,12 @@ static void pairing_complete(struct bt_conn *conn, bool bonded)
 static void pairing_failed(struct bt_conn *conn, enum bt_security_err reason)
 {
     LOG_ERR("Pairing failed. reason=%d", reason);
+
+	// if (reason == 4) {
+	// 	unpair_addr = bt_conn_get_dst(conn);
+
+	// 	k_work_submit(&unpair_worker);
+	// }
 }
 
 
@@ -254,3 +265,15 @@ static enum bt_security_err auth_pairing_accept(struct bt_conn *conn, const stru
 
     return BT_SECURITY_ERR_SUCCESS;
 };
+
+
+static void unpair_worker_cb(struct k_work *work)
+{
+	if (unpair_addr == NULL) {
+		return;
+	}
+
+	LOG_INF("unpairing");
+    bt_unpair(BT_ID_DEFAULT, unpair_addr);
+	unpair_addr = NULL;
+}

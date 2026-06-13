@@ -17,7 +17,7 @@
 static void scroll_action(int16_t angle);
 static void media_action(int16_t angle);
 static void button_input_cb(struct input_event *evt, void *user_data);
-static void trigger_media_event(int action);
+static void trigger_media_event(uint16_t usage);
 static void init_settings();
 static void submit_report(const char *trigger_name, const uint16_t size, const uint8_t *const report);
 
@@ -137,16 +137,16 @@ static void media_action(int16_t angle)
 		last_seek_time = now;
 
 		action = angle > 0
-			? MEDIA_SCAN_NEXT_BIT
-			: MEDIA_SCAN_PREV_BIT;
+			? HID_MEDIA_SCAN_NEXT
+			: HID_MEDIA_SCAN_PREV;
 	} else {
 		if (should_debounce) {
 			return;
 		}
 
 		action = angle > 0
-			? MEDIA_VOL_UP_BIT
-			: MEDIA_VOL_DOWN_BIT;
+			? HID_MEDIA_VOL_UP
+			: HID_MEDIA_VOL_DONW;
 	}
 
 	trigger_media_event(action);
@@ -184,7 +184,7 @@ static void button_input_cb(struct input_event *evt, void *user_data)
 			if (last_mod_up_time + MEDIA_DOUBLE_TAP_INTERVAL > now) {
 				last_mod_up_time = 0;
 
-				trigger_media_event(MEDIA_PLAY_PAUSE_BIT);
+				trigger_media_event(HID_MEDIA_PLAY_PAUSE);
 				return;
 			}
 
@@ -226,17 +226,19 @@ static void submit_report(
 }
 
 
-static void trigger_media_event(int bit_id)
+static void trigger_media_event(uint16_t usage)
 {
-	int8_t report[MEDIA_REPORT_SIZE] = {0};
+	uint8_t report[MEDIA_REPORT_SIZE] = {0};
 	report[MEDIA_REPORT_IDX] = MEDIA_REPORT_ID;
-	report[MEDIA_ACTION_IDX] = 1 << bit_id;
+	report[MEDIA_ACTION_LOW_IDX]  = usage & 0xFF;
+	report[MEDIA_ACTION_HIGH_IDX] = usage >> 8;
 
 	submit_report("media down", MEDIA_REPORT_SIZE, report);
 
 	k_msleep(1);
 
-	report[MEDIA_ACTION_IDX] = 0;
+	report[MEDIA_ACTION_LOW_IDX]  = 0;
+	report[MEDIA_ACTION_HIGH_IDX] = 0;
 
 	submit_report("media up", MEDIA_REPORT_SIZE, report);
 }

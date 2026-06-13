@@ -22,11 +22,6 @@
 #define BTN_MODE_CODE 11
 #define BTN_MOD_CODE 2
 
-#define MEDIA_SCAN_NEXT_BIT   0
-#define MEDIA_SCAN_PREV_BIT   1
-#define MEDIA_PLAY_PAUSE_BIT  2
-#define MEDIA_VOL_UP_BIT      3
-#define MEDIA_VOL_DOWN_BIT    4
 
 
 static const uint8_t hid_report_desc[] = 	{
@@ -129,35 +124,17 @@ static const uint8_t hid_report_desc[] = 	{
 	/*
 	 * Media Controls
 	 */
-	HID_USAGE_PAGE(0x0C), // (Consumer Page)
-	HID_USAGE(0x01), // (Consumer)
+	HID_USAGE_PAGE(0x0C),
+	HID_USAGE(0x01),
 	HID_COLLECTION(HID_COLLECTION_APPLICATION),
 		HID_REPORT_ID(MEDIA_REPORT_ID),
-		HID_USAGE_PAGE(0x0C),
-		HID_LOGICAL_MIN8(0),
-		HID_LOGICAL_MAX8(1),
-		HID_REPORT_SIZE(1),
-		HID_REPORT_COUNT(5),
-		HID_USAGE(HID_MEDIA_SCAN_NEXT),
-		HID_USAGE(HID_MEDIA_SCAN_PREV),
-		HID_USAGE(HID_MEDIA_PLAY_PAUSE),
-		HID_USAGE(HID_MEDIA_VOL_UP),
-		HID_USAGE(HID_MEDIA_VOL_DONW),
-		HID_INPUT(0x02),  // (Data, Var, Abs)
-		// HID_REPORT_ID(MEDIA_REPORT_ID),
-		// HID_USAGE_PAGE(0x0C), // (Consumer Page)
-		// HID_LOGICAL_MIN16(0x0, 0x0),
-		// HID_LOGICAL_MAX16(0x3C, 0x02),
-		// HID_USAGE_MIN16(0x0, 0x0),
-		// HID_USAGE_MAX16(0x3C, 0x02),
-		// HID_REPORT_SIZE(16),
-		// HID_REPORT_COUNT(1),
-		// HID_INPUT(0x00), // (Data, Ary, Abs)
-
-		// Padding
-		HID_REPORT_SIZE(3),
+		HID_LOGICAL_MIN16(0x00, 0x00),
+		HID_LOGICAL_MAX16(0xEA, 0x00),
+		HID_USAGE_MIN16(0x00, 0x00),
+		HID_USAGE_MAX16(0xEA, 0x00),
+		HID_REPORT_SIZE(16),
 		HID_REPORT_COUNT(1),
-		HID_INPUT(0x01),  // (Cnst, Ary, Abs)
+		HID_INPUT(0x00),
 	HID_END_COLLECTION,
 };
 
@@ -186,7 +163,8 @@ enum keeb_report_idx {
 
 enum media_report_idx {
 	MEDIA_REPORT_IDX,
-	MEDIA_ACTION_IDX,
+	MEDIA_ACTION_LOW_IDX,
+	MEDIA_ACTION_HIGH_IDX,
 	MEDIA_REPORT_SIZE,
 };
 
