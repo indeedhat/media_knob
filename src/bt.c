@@ -113,11 +113,11 @@ int bt_submit_report(const uint16_t size, const uint8_t *const report)
 	memcpy(tmp, report + 1, size - 1);
 
 	if (report[0] == KEEB_REPORT_ID) {
-		return bt_gatt_notify(NULL, &hog_ctx.attrs[BT_KEEB_ATTR_IDX], tmp, size);
+		return bt_gatt_notify(NULL, &hog_ctx.attrs[BT_KEEB_ATTR_IDX], tmp, size - 1);
 	} else if (report[0] == MOUSE_REPORT_ID) {
-		return bt_gatt_notify(NULL, &hog_ctx.attrs[BT_MOUSE_ATTR_IDX], tmp, size);
+		return bt_gatt_notify(NULL, &hog_ctx.attrs[BT_MOUSE_ATTR_IDX], tmp, size - 1);
 	} else if (report[0] == MEDIA_REPORT_ID) {
-		return bt_gatt_notify(NULL, &hog_ctx.attrs[BT_MEDIA_ATTR_IDX], tmp, size);
+		return bt_gatt_notify(NULL, &hog_ctx.attrs[BT_MEDIA_ATTR_IDX], tmp, size - 1);
 	}
 
 	return 0;
@@ -138,10 +138,10 @@ static void connected(struct bt_conn *conn, uint8_t err)
 	LOG_INF("Connected %s\n", bt_conn_dst_str(conn));
 	is_connected = true;
 
-// 	int e = bt_conn_set_security(conn, BT_SECURITY_L2);
-// 	if (e) {
-// 		LOG_ERR("Failed to set security %d\n", e);
-// 	}
+	// err = bt_conn_set_security(conn, BT_SECURITY_L2);
+	// if (err) {
+	// 	LOG_ERR("Failed to set security: %d", err);
+	// }
 }
 
 static void disconnected(struct bt_conn *conn, uint8_t reason)
@@ -212,9 +212,6 @@ static void pairing_complete(struct bt_conn *conn, bool bonded)
 static void pairing_failed(struct bt_conn *conn, enum bt_security_err reason)
 {
     LOG_ERR("Pairing failed. reason=%d", reason);
-
-	const bt_addr_le_t *dst = bt_conn_get_dst(conn);
-	bt_unpair(BT_ID_DEFAULT, dst);
 }
 
 

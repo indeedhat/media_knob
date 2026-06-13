@@ -20,12 +20,14 @@
 #include <zephyr/logging/log.h>
 
 #include "hid.h"
+#include "zephyr/bluetooth/att.h"
 
 
 LOG_MODULE_REGISTER(bt_hog, LOG_LEVEL_DBG);
 
 
 #define RESOLUTION_MULTIPLIER 0x0F
+#define PROTOCOL_MODE 0x01
 
 
 enum {
@@ -69,6 +71,7 @@ static uint8_t media_enabled;
 static uint8_t ctrl_point;
 
 static uint8_t resolution_multiplier = RESOLUTION_MULTIPLIER;
+static uint8_t proto_mode = PROTOCOL_MODE;
 
 
 static ssize_t read_feature_report(struct bt_conn *conn, const struct bt_gatt_attr *attr, void *buf, uint16_t len, uint16_t offset);
@@ -81,6 +84,8 @@ static ssize_t write_ctrl_point(struct bt_conn *conn, const struct bt_gatt_attr 
 static void mouse_ccc_changed(const struct bt_gatt_attr *attr, uint16_t value);
 static void keeb_ccc_changed(const struct bt_gatt_attr *attr, uint16_t value);
 static void media_ccc_changed(const struct bt_gatt_attr *attr, uint16_t value);
+static ssize_t read_proto_mode(struct bt_conn *conn, const struct bt_gatt_attr *attr, void *buf, uint16_t len, uint16_t offset);
+static ssize_t write_proto_mode(struct bt_conn *conn, const struct bt_gatt_attr *attr, const void *buf, uint16_t len, uint16_t offset, uint8_t flags);
 
 
 /* Require encryption. */
@@ -90,6 +95,12 @@ static void media_ccc_changed(const struct bt_gatt_attr *attr, uint16_t value);
 /* HID Service Declaration */
 BT_GATT_SERVICE_DEFINE(hog_svc,
 	BT_GATT_PRIMARY_SERVICE(BT_UUID_HIDS),
+	BT_GATT_CHARACTERISTIC(
+		BT_UUID_HIDS_PROTOCOL_MODE,
+		BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE_WITHOUT_RESP,
+		BT_GATT_PERM_READ | BT_GATT_PERM_WRITE,
+		read_proto_mode, write_proto_mode, &proto_mode
+	),
 	BT_GATT_CHARACTERISTIC(
 		BT_UUID_HIDS_INFO,
 		BT_GATT_CHRC_READ,
@@ -119,7 +130,7 @@ BT_GATT_SERVICE_DEFINE(hog_svc,
     BT_GATT_CCC(keeb_ccc_changed, SAMPLE_BT_PERM_READ | SAMPLE_BT_PERM_WRITE),
     BT_GATT_DESCRIPTOR(
 		BT_UUID_HIDS_REPORT_REF,
-		BT_GATT_PERM_READ,
+		SAMPLE_BT_PERM_READ,
 		read_report,
 		NULL,
 		&keeb_input
@@ -137,7 +148,7 @@ BT_GATT_SERVICE_DEFINE(hog_svc,
     BT_GATT_CCC(mouse_ccc_changed, SAMPLE_BT_PERM_READ | SAMPLE_BT_PERM_WRITE),
     BT_GATT_DESCRIPTOR(
 		BT_UUID_HIDS_REPORT_REF,
-		BT_GATT_PERM_READ,
+		SAMPLE_BT_PERM_READ,
 		read_report,
 		NULL,
 		&mouse_input
@@ -152,7 +163,7 @@ BT_GATT_SERVICE_DEFINE(hog_svc,
     ),
     BT_GATT_DESCRIPTOR(
         BT_UUID_HIDS_REPORT_REF,
-        BT_GATT_PERM_READ,
+        SAMPLE_BT_PERM_READ,
         read_report,
         NULL,
         &mouse_feat
@@ -170,7 +181,7 @@ BT_GATT_SERVICE_DEFINE(hog_svc,
     BT_GATT_CCC(media_ccc_changed, SAMPLE_BT_PERM_READ | SAMPLE_BT_PERM_WRITE),
     BT_GATT_DESCRIPTOR(
 		BT_UUID_HIDS_REPORT_REF,
-		BT_GATT_PERM_READ,
+		SAMPLE_BT_PERM_READ,
 		read_report,
 		NULL,
 		&media_input
@@ -250,18 +261,21 @@ static ssize_t read_report(
 static void mouse_ccc_changed(const struct bt_gatt_attr *attr, uint16_t value)
 {
 	mouse_enabled = (value == BT_GATT_CCC_NOTIFY) ? 1 : 0;
+	LOG_INF("mouse_ccc_changed %d", mouse_enabled);
 }
 
 
 static void keeb_ccc_changed(const struct bt_gatt_attr *attr, uint16_t value)
 {
 	keeb_enabled = (value == BT_GATT_CCC_NOTIFY) ? 1 : 0;
+	LOG_INF("keeb_ccc_changed %d", keeb_enabled);
 }
 
 
 static void media_ccc_changed(const struct bt_gatt_attr *attr, uint16_t value)
 {
 	media_enabled = (value == BT_GATT_CCC_NOTIFY) ? 1 : 0;
+	LOG_INF("media_ccc_changed %d", media_enabled);
 }
 
 
@@ -334,4 +348,31 @@ static ssize_t write_feature_report(
 const struct bt_gatt_service_static hog_init()
 {
 	return hog_svc;
+}
+
+
+static ssize_t read_proto_mode(
+	struct bt_conn *conn,
+	const struct bt_gatt_attr *attr,
+	void *buf,
+	uint16_t len,
+	uint16_t offset
+) {
+	LOG_INF("write_proto_mode");
+    return bt_gatt_attr_read(conn, attr, buf, len, offset, attr->user_data, sizeof(uint8_t));
+}
+
+
+static ssize_t write_proto_mode(
+	struct bt_conn *conn,
+	const struct bt_gatt_attr *attr,
+	const void *buf,
+	uint16_t len,
+	uint16_t offset,
+	uint8_t flags
+) {
+	LOG_INF("write_proto_mode");
+    if (len != 1) return BT_GATT_ERR(BT_ATT_ERR_INVALID_ATTRIBUTE_LEN);
+    proto_mode = ((uint8_t *)buf)[0];
+    return len;
 }

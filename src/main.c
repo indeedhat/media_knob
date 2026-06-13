@@ -103,7 +103,7 @@ static void scroll_action(int16_t angle)
 		return;
 	}
 
-	uint8_t report[MOUSE_REPORT_SIZE];
+	uint8_t report[MOUSE_REPORT_SIZE] = {0};
 	report[MOUSE_REPORT_IDX] = MOUSE_REPORT_ID;
 	report[MOUSE_ANGLE_IDX] = angle;
 
@@ -137,16 +137,16 @@ static void media_action(int16_t angle)
 		last_seek_time = now;
 
 		action = angle > 0
-			? HID_MEDIA_SCAN_NEXT
-			: HID_MEDIA_SCAN_PREV;
+			? MEDIA_SCAN_NEXT_BIT
+			: MEDIA_SCAN_PREV_BIT;
 	} else {
 		if (should_debounce) {
 			return;
 		}
 
 		action = angle > 0
-			? HID_MEDIA_VOL_UP
-			: HID_MEDIA_VOL_DONW;
+			? MEDIA_VOL_UP_BIT
+			: MEDIA_VOL_DOWN_BIT;
 	}
 
 	trigger_media_event(action);
@@ -184,7 +184,7 @@ static void button_input_cb(struct input_event *evt, void *user_data)
 			if (last_mod_up_time + MEDIA_DOUBLE_TAP_INTERVAL > now) {
 				last_mod_up_time = 0;
 
-				trigger_media_event(HID_MEDIA_PLAY_PAUSE);
+				trigger_media_event(MEDIA_PLAY_PAUSE_BIT);
 				return;
 			}
 
@@ -193,7 +193,7 @@ static void button_input_cb(struct input_event *evt, void *user_data)
 		}
 
 		if (current_mode == MODE_SCROLL) {
-			uint8_t report[KEEB_REPORT_SIZE];
+			uint8_t report[KEEB_REPORT_SIZE] = {0};
 			report[KEEB_REPORT_IDX] = KEEB_REPORT_ID;
 			report[KEEB_MODIFIER_IDX] = evt->value
 				? HID_KBD_MODIFIER_LEFT_CTRL
@@ -226,11 +226,11 @@ static void submit_report(
 }
 
 
-static void trigger_media_event(int action)
+static void trigger_media_event(int bit_id)
 {
-	int8_t report[MEDIA_REPORT_SIZE];
+	int8_t report[MEDIA_REPORT_SIZE] = {0};
 	report[MEDIA_REPORT_IDX] = MEDIA_REPORT_ID;
-	report[MEDIA_ACTION_IDX] = action;
+	report[MEDIA_ACTION_IDX] = 1 << bit_id;
 
 	submit_report("media down", MEDIA_REPORT_SIZE, report);
 

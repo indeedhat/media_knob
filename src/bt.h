@@ -4,9 +4,9 @@
 #include <stdint.h>
 
 
-#define BT_KEEB_ATTR_IDX  6
-#define BT_MOUSE_ATTR_IDX 10
-#define BT_MEDIA_ATTR_IDX 16
+#define BT_KEEB_ATTR_IDX  7
+#define BT_MOUSE_ATTR_IDX 11
+#define BT_MEDIA_ATTR_IDX 17
 
 
 // Initialize the bluetooth device
