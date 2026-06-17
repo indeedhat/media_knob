@@ -68,7 +68,11 @@ int main(void)
 	}
 
 	while (true) {
-		k_msleep(current_mode == MODE_SCROLL ? SCROLL_POLL_DELAY : MEDIA_POLL_DELAY);
+		if (as5600_jitter_compensation_enabled()) {
+			k_msleep(AS5600_JITTER_DELAY_MS);
+		} else {
+			k_msleep(current_mode == MODE_SCROLL ? SCROLL_POLL_DELAY : MEDIA_POLL_DELAY);
+		}
 
 		int16_t angle = as5600_read(device_state.as5600);
 

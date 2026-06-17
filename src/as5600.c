@@ -35,13 +35,19 @@ int as5600_read(const struct device *dev)
 		return 0;
 	}
 
-	if (jitter_count >= AS5600_JITTER_THRESHOLD) {
+	if (as5600_jitter_compensation_enabled()) {
 		if (delta <= AS5600_JITTER_DEAD_ZONE && delta >= -AS5600_JITTER_DEAD_ZONE) {
 			LOG_DBG("jitter compensated");
 			return 0;
 		}
 
 		jitter_count = 0;
+
+	#if defined AS5600_JITTER_POST_RESULT
+		return delta > 0
+			? AS5600_JITTER_POST_RESULT
+			: -AS5600_JITTER_POST_RESULT;
+	#endif
 	}
 
 	if (prev_delta == -delta) {
@@ -81,3 +87,8 @@ int as5600_init(const struct device* dev) {
 	return 0;
 }
 
+
+bool as5600_jitter_compensation_enabled()
+{
+	return jitter_count >= AS5600_JITTER_THRESHOLD;
+}
