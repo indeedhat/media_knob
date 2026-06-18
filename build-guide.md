@@ -1,4 +1,10 @@
 ## Parts list
+
+> [!NOTE]
+> This build guide is a little out of date, the base has been rearranged and there is now a button in the bottom cover
+> for the mod button, It should still be close enough to manage the build but i will update this soon with new pictures
+> and updated instructions
+
 ### Electrical
 - 1x [Pro micro nrf52840 micro controller](https://www.aliexpress.com/w/wholesale-Nrf52840-Pro-Micro.html?spm=a2g0o.detail.search.0)
 - 1x [as5600 magnetic encoder (white dev board)](https://www.aliexpress.com/w/wholesale-as5600.html?spm=a2g0o.productlist.search.0)
