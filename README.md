@@ -3,21 +3,43 @@ A little HID device to control media and scrolling.
 
 Tested on linux, macos and windows
 
+
 ![media knob](assets/media-knob.jpg)
 
 ## Build Guide
 [Build Guide found heer](build-guide.md)
 
 ## Controls
+The device has 3 inputs:
+- Spin dial
+- Side button (mode switch)
+- Button in base under the foot opposite the USB port (Mod)
+
 ### Scroll mode
-- spin for high resolution scrolling
-- press and spin to zoom
+
+| Direction | Mod | Action |
+| --- | --- | --- |
+| Clockwise | No | Scroll Up |
+| Counter Clockwise | No | Scroll Down |
+| Clockwise | Yes | Zoom in |
+| Counter Clockwise | Yes | Zoom out |
 
 ### Media Mode
-- spin to change volume
-- double tap to play/pause
-- press and spin to skip to next/prev track
 
+| Direction | Mod | Action |
+| --- | --- | --- |
+| Clockwise | No | Volume Up |
+| Counter Clockwise | No | Volume Down |
+| Clockwise | Yes | Next track |
+| Counter Clockwise | Yes | Previous track |
+| N/A | Double Tap | Play/Pause |
+
+
+## Bluetooth Operation
+- The device shows up as "Knoblet".
+- It will allow up to 5 devices to be paired but only one device to be connected at a time.
+- pairing to a 6th device will remove the oldest pairing
+- when pairing to a device that it already has a pairing for but the key has changed (for example if you remove the device from your pc and then re add it) connection will fail the first time and the pairing will be cleared for that device. The secrond time you try connect it will pair correctly. This is intended functionality to remove the need for a dedicated clear pairing button.
 
 ## Roadmap
 ### Software
@@ -50,8 +72,9 @@ Tested on linux, macos and windows
 - [x] main body (needs updating for buttons)
 
 ### Other
-- [ ] create documentation
-- [ ] upload final cad files
+- [x] create build guide
+    - needs updating
+- [x] upload STL files for 3d printing
 
 ## Possible tasks
 It might be nice to have a macro mode that lets you configure what the dial does in an application
