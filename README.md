@@ -48,6 +48,10 @@ The device has 3 inputs:
 - MacOS: does not natively support high res scrolling, I have had the best results using [Better Mouse](https://better-mouse.com/)
 
 
+## Battery life
+I have not been tracking this as well as I could have but I would estimate about 16 hours usage between charges with the 110mah battery I am using.
+It is on my roadmap to implement some battery saving features but I haven't found time to prioritise them as of yet.
+
 ## Roadmap
 ### Software
 - [x] scroll mode
