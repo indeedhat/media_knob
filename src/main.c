@@ -17,13 +17,13 @@
 static void scroll_action(int16_t angle);
 static void media_action(int16_t angle);
 static void button_input_cb(struct input_event *evt, void *user_data);
-static void trigger_media_event(uint16_t usage);
+static void trigger_media_event(uint16_t media_event);
 static void init_settings();
 static void submit_report(const char *trigger_name, const uint16_t size, const uint8_t *const report);
 
 
 int current_mode = MODE_SCROLL;
-int mod_state = 0;
+int mod_btn_pressed = 0;
 
 int64_t last_seek_time = 0;
 int64_t last_mod_up_time = 0;
@@ -101,6 +101,11 @@ static void init_settings()
 }
 
 
+/**
+ * @brief scroll_action handles sending an angle event to the host when in scroll mode
+ *
+ * @param[in] angle the angle of change
+ */
 static void scroll_action(int16_t angle)
 {
 	if (angle == 0) {
@@ -115,9 +120,13 @@ static void scroll_action(int16_t angle)
 }
 
 
+/**
+ * @brief media_action handles sending an angle event to the host when in media mode
+ *
+ * @param[in] angle the angle of change
+ */
 static void media_action(int16_t angle)
 {
-	int action;
 	uint8_t report[MEDIA_REPORT_SIZE];
 	report[MEDIA_REPORT_IDX] = MEDIA_REPORT_ID;
 	
@@ -130,33 +139,37 @@ static void media_action(int16_t angle)
 	// release the press.
 	// The debounce time is purely set based on when the skip happens.
 	int64_t now = k_uptime_get();
-	bool should_debounce = now < last_seek_time + MEDIA_DEBOUNCE_TIME;
-
-	if (mod_state) {
-		if (should_debounce) {
+	if (now < last_seek_time + MEDIA_DEBOUNCE_TIME) {
+		if (mod_btn_pressed) {
 			last_seek_time = now;
-			return;
 		}
-
-		last_seek_time = now;
-
-		action = angle > 0
-			? HID_MEDIA_SCAN_NEXT
-			: HID_MEDIA_SCAN_PREV;
-	} else {
-		if (should_debounce) {
-			return;
-		}
-
-		action = angle > 0
-			? HID_MEDIA_VOL_UP
-			: HID_MEDIA_VOL_DONW;
+		return;
 	}
 
-	trigger_media_event(action);
+	if (mod_btn_pressed) {
+		last_seek_time = now;
+
+		trigger_media_event(angle > 0
+			? HID_MEDIA_SCAN_NEXT
+			: HID_MEDIA_SCAN_PREV
+		);
+		return;
+	}
+
+	trigger_media_event(angle > 0
+		? HID_MEDIA_VOL_UP
+		: HID_MEDIA_VOL_DONW
+	);
 }
 
 
+/**
+ * @brief button_input_cb hadles button presses when the evnt is sent from the zephyr
+ *        input subsystem
+ *
+ * @param[in] evt the input event
+ * @param[in] user_data the user data for the event
+ */
 static void button_input_cb(struct input_event *evt, void *user_data)
 {
 	if (evt->sync == 0) {
@@ -164,78 +177,95 @@ static void button_input_cb(struct input_event *evt, void *user_data)
 	}
 
 	if (evt->code == BTN_MODE_CODE) {
-		if (evt->value == 0) {
-			current_mode = (current_mode + 1) % MODE_COUNT;
-
-			int err = settings_save_one(SETTINGS_MODE, &current_mode, sizeof(current_mode));
-			if (err != 0) {
-				LOG_ERR("Failed to save mode to settings");
-			}
+		if (evt->value != 0) {
+			return;
 		}
+
+		current_mode = (current_mode + 1) % MODE_COUNT;
+
+	#if defined CONFIG_KNOBLET_SAVE_MODE_STATE
+		int err = settings_save_one(SETTINGS_MODE, &current_mode, sizeof(current_mode));
+		if (err != 0) {
+			LOG_ERR("Failed to save mode to settings");
+		}
+	#endif
 
 		LOG_INF("Set mode to %s", current_mode == MODE_SCROLL ? "scroll" : "media");
 		return;
 	}
 
-	if (evt->code == BTN_MOD_CODE) {
-		mod_state = evt->value;
-		if (current_mode == MODE_MEDIA) {
-			if (evt->value) {
-				return;
-			}
+	if (evt->code != BTN_MOD_CODE && evt->code != BTN_MOD2_CODE) {
+		return;
+	}
 
-			int64_t now = k_uptime_get();
-			if (last_mod_up_time + MEDIA_DOUBLE_TAP_INTERVAL > now) {
-				last_mod_up_time = 0;
-
-				trigger_media_event(HID_MEDIA_PLAY_PAUSE);
-				return;
-			}
-
-			last_mod_up_time = now;
+	mod_btn_pressed = evt->value;
+	switch (current_mode) {
+	case MODE_MEDIA:
+		if (evt->value) {
 			return;
 		}
 
-		if (current_mode == MODE_SCROLL) {
-			uint8_t report[KEEB_REPORT_SIZE] = {0};
-			report[KEEB_REPORT_IDX] = KEEB_REPORT_ID;
-			report[KEEB_MODIFIER_IDX] = evt->value
-				? HID_KBD_MODIFIER_LEFT_CTRL
-				: HID_KBD_MODIFIER_NONE;
+		int64_t now = k_uptime_get();
+		if (last_mod_up_time + MEDIA_DOUBLE_TAP_INTERVAL > now) {
+			last_mod_up_time = 0;
 
-			submit_report("hid keeyboard",KEEB_REPORT_SIZE, report);
+			trigger_media_event(HID_MEDIA_PLAY_PAUSE);
+			return;
 		}
 
-		return;
+		last_mod_up_time = now;
+		break;
+
+	case MODE_SCROLL:
+		uint8_t report[KEEB_REPORT_SIZE] = {0};
+		report[KEEB_REPORT_IDX] = KEEB_REPORT_ID;
+		report[KEEB_MODIFIER_IDX] = evt->value
+			? HID_KBD_MODIFIER_LEFT_CTRL
+			: HID_KBD_MODIFIER_NONE;
+
+		submit_report("hid keeyboard",KEEB_REPORT_SIZE, report);
 	}
 }
 
 
+/**
+ * @brief submit_report submits a HID report to the host via the bluetooth subsystem
+ *
+ * @param[in] trigger_name display name for the log
+ * @param[in] size the report size
+ * @param[in] report the report data
+ */
 static void submit_report(
 	const char *trigger_name,
 	const uint16_t size,
 	const uint8_t *const report
 ) {
-	int err;
-
-	if (bt_connected()) {
-		err = bt_submit_report(size, report);
-		if (err) {
-			LOG_ERR("failed to send %s event: %d", trigger_name, err);
-			return;
-		} else {
-			LOG_DBG("%s event sent", trigger_name);
-		}
+	if (!bt_connected()) {
+		return;
 	}
+
+	int err = bt_submit_report(size, report);
+	if (err) {
+		LOG_ERR("failed to send %s event: %d", trigger_name, err);
+		return;
+	}
+
+	LOG_DBG("%s event sent", trigger_name);
 }
 
 
-static void trigger_media_event(uint16_t usage)
+/**
+ * @brief trigger_media_event builds and sends a HID media event to the bluetooth
+*         subsystem for both the keydown and keyup states
+ *
+ * @param[in] media_event the media event type to be triggered
+ */
+static void trigger_media_event(uint16_t media_event)
 {
 	uint8_t report[MEDIA_REPORT_SIZE] = {0};
 	report[MEDIA_REPORT_IDX] = MEDIA_REPORT_ID;
-	report[MEDIA_ACTION_LOW_IDX]  = usage & 0xFF;
-	report[MEDIA_ACTION_HIGH_IDX] = usage >> 8;
+	report[MEDIA_ACTION_LOW_IDX]  = media_event & 0xFF;
+	report[MEDIA_ACTION_HIGH_IDX] = media_event >> 8;
 
 	submit_report("media down", MEDIA_REPORT_SIZE, report);
 

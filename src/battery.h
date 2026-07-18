@@ -5,5 +5,9 @@
 #define BAS_VOLTAGE_DIVIDER 5
 #define BAS_POLL_INTERVAL_S 300
 
-// Initialize the periodic task to update the host with the devices battery level
+/**
+ * @brief init_battery_level initializes the periodic task to update the host with the devices battery level
+ *
+ * @return error code
+ */
 int init_battery_level();

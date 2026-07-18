@@ -21,6 +21,7 @@
 
 #define BTN_MODE_CODE 11
 #define BTN_MOD_CODE 2
+#define BTN_MOD2_CODE 3 // TODO: this is a placeholder
 
 
 

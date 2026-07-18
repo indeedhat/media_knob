@@ -9,11 +9,26 @@
 #define BT_MEDIA_ATTR_IDX 19
 
 
-// Initialize the bluetooth device
+/**
+ * @brief bt_init initializes the bluetooth subsystem
+ *
+ * @return error code
+ */
 int bt_init();
 
-// Check if the device is connected to a host machine
+/**
+ * @brief bt_connected returns the connection state of the bluetooth connection
+ *
+ * @return connection state
+ */
 bool bt_connected();
 
-// Send a hids report to the host device
+/**
+ * @brief bt_submit_report sends off an HID report to the bluetooth subsystem
+ *
+ * @param[in] size the size of the report
+ * @param[in] report the report bytes
+ *
+ * @return error code
+ */
 int bt_submit_report(const uint16_t size, const uint8_t *const report);

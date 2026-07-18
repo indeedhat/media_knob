@@ -15,10 +15,17 @@
 			gpios = <&gpio0 10 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
 			zephyr,code = <INPUT_KEY_0>;
 		};
+
 		button1: button_1 {
 			label = "Mode Button";
 			gpios = <&gpio0 9 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
 			zephyr,code = <INPUT_KEY_1>;
+		};
+
+		button2: button_2 {
+			label = "Mod2 button";
+			gpios = <&gpio0 11 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+			zephyr,code = <INPUT_KEY_2>;
 		};
 	};
 

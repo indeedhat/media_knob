@@ -32,10 +32,28 @@ struct as5600_dev_data {
 };
 
 
-// Initialize the sensor device
+/**
+ * @brief as5600_init initializes the sensor device
+ *
+ * @param[in] dev the device struct
+ *
+ * @return error code
+ */
 int as5600_init(const struct device* dev);
 
 // Read the angle change from the sensor since the last read
+/**
+ * @brief as5600_read reads the angle change from the sensor since the last read
+ *
+ * @param[in] dev the device struct
+ *
+ * @return error code
+ */
 int as5600_read(const struct device *dev);
 
+/**
+ * @brief as5600_jitter_compensation_enabled returns the current state of jitter compensation
+ *
+ * @return [TODO:description]
+ */
 bool as5600_jitter_compensation_enabled();

@@ -173,13 +173,14 @@ static void security_changed(
 	bt_security_t level,
 	enum bt_security_err err
 ) {
-	if (!err) {
-		LOG_INF("Security changed: %s level %u\n", bt_conn_dst_str(conn), level);
-		if (level >= BT_SECURITY_L2) {
-			is_connected = true;
-		}
-	} else {
+	if (err) {
 		LOG_ERR("Security failed: level %u err=%d", level, (int)err);
+		return;
+	}
+
+	LOG_INF("Security changed: %s level %u\n", bt_conn_dst_str(conn), level);
+	if (level >= BT_SECURITY_L2) {
+		is_connected = true;
 	}
 }
 
@@ -224,11 +225,12 @@ static void pairing_failed(struct bt_conn *conn, enum bt_security_err reason)
 {
     LOG_ERR("Pairing failed. reason=%d", reason);
 
-	if (reason == 4) {
-		unpair_addr = bt_conn_get_dst(conn);
-
-		k_work_submit(&unpair_worker);
+	if (reason != 4) {
+		return;
 	}
+
+	unpair_addr = bt_conn_get_dst(conn);
+	k_work_submit(&unpair_worker);
 }
 
 
