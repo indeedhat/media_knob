@@ -172,6 +172,8 @@ static void media_action(int16_t angle)
  */
 static void button_input_cb(struct input_event *evt, void *user_data)
 {
+	LOG_INF("button pressed %d", evt->code);
+
 	if (evt->sync == 0) {
 		return;
 	}

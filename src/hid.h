@@ -19,9 +19,9 @@
 #define HID_LEFT_CTRL 0xE0
 #define HID_RIGHT_GUI 0xE7
 
-#define BTN_MODE_CODE 11
+#define BTN_MODE_CODE 3
 #define BTN_MOD_CODE 2
-#define BTN_MOD2_CODE 3 // TODO: this is a placeholder
+#define BTN_MOD2_CODE 11
 
 
 
