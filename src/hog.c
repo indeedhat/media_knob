@@ -67,6 +67,7 @@ static struct hids_report mouse_feat  = { .id = MOUSE_REPORT_ID, .type = HIDS_FE
 static uint8_t mouse_enabled;
 static uint8_t keeb_enabled;
 static uint8_t media_enabled;
+static uint8_t macro_enabled;
 
 static uint8_t ctrl_point;
 
@@ -84,6 +85,7 @@ static ssize_t write_ctrl_point(struct bt_conn *conn, const struct bt_gatt_attr 
 static void mouse_ccc_changed(const struct bt_gatt_attr *attr, uint16_t value);
 static void keeb_ccc_changed(const struct bt_gatt_attr *attr, uint16_t value);
 static void media_ccc_changed(const struct bt_gatt_attr *attr, uint16_t value);
+static void macro_ccc_changed(const struct bt_gatt_attr *attr, uint16_t value);
 static ssize_t read_proto_mode(struct bt_conn *conn, const struct bt_gatt_attr *attr, void *buf, uint16_t len, uint16_t offset);
 static ssize_t write_proto_mode(struct bt_conn *conn, const struct bt_gatt_attr *attr, const void *buf, uint16_t len, uint16_t offset, uint8_t flags);
 
@@ -91,6 +93,20 @@ static ssize_t write_proto_mode(struct bt_conn *conn, const struct bt_gatt_attr 
 /* Require encryption. */
 #define SAMPLE_BT_PERM_READ BT_GATT_PERM_READ_ENCRYPT
 #define SAMPLE_BT_PERM_WRITE BT_GATT_PERM_WRITE_ENCRYPT
+
+#define MACRO_SERVICE_UUID
+#define MACRO_CHARACTERISTIC_UUID
+
+/* UUID's for my custom macro service/characteristic */
+#define BT_UUID_MACRO_SERVICE_VAL \
+    BT_UUID_128_ENCODE(0xF28EC1C1, 0x7BE9, 0x4776, 0xB063, 0x578239F29BFF)
+#define BT_UUID_MACRO_CHARACTERISTIC_VAL \
+    BT_UUID_128_ENCODE(0x29389447, 0xCCD7, 0x4E89, 0xB8C6, 0x3437651B5488)
+
+#define BT_UUID_MACRO_SERVICE \
+    BT_UUID_DECLARE_128(BT_UUID_MACRO_SERVICE_VAL)
+#define BT_UUID_MACRO_CHARACTERISTIC \
+    BT_UUID_DECLARE_128(BT_UUID_MACRO_CHARACTERISTIC_VAL)
 
 /* HID Service Declaration */
 BT_GATT_SERVICE_DEFINE(hog_svc,
@@ -193,6 +209,22 @@ BT_GATT_SERVICE_DEFINE(hog_svc,
 		BT_GATT_PERM_WRITE,
 		NULL, write_ctrl_point, &ctrl_point
 	),
+
+	/* Custom Macro Service */
+	BT_GATT_SECONDARY_SERVICE(BT_UUID_MACRO_SERVICE),
+	BT_GATT_CHARACTERISTIC(
+		BT_UUID_MACRO_CHARACTERISTIC,
+		BT_GATT_CHRC_NOTIFY,
+		BT_GATT_PERM_NONE,
+		NULL,
+		NULL,
+		NULL
+	),
+	BT_GATT_CCC(
+		macro_ccc_changed,
+		BT_GATT_PERM_READ | BT_GATT_PERM_WRITE
+	),
+	// TODO: define report
 );
 
 
@@ -276,6 +308,12 @@ static void media_ccc_changed(const struct bt_gatt_attr *attr, uint16_t value)
 {
 	media_enabled = (value == BT_GATT_CCC_NOTIFY) ? 1 : 0;
 	LOG_INF("media_ccc_changed %d", media_enabled);
+}
+
+static void macro_ccc_changed(const struct bt_gatt_attr *attr, uint16_t value)
+{
+	macro_enabled = (value == BT_GATT_CCC_NOTIFY) ? 1 : 0;
+	LOG_INF("macro_ccc_changed %d", macro_enabled);
 }
 
 
