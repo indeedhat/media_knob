@@ -15,6 +15,13 @@ const (
 )
 
 var adapter = bluetooth.DefaultAdapter
+var events = make(chan Event, 1)
+
+type Event struct {
+	Angle      int16
+	Button     int8
+	ButtonDown bool
+}
 
 func main() {
 	if err := adapter.Enable(); err != nil {
@@ -53,7 +60,13 @@ func main() {
 	}
 
 	log.Println("connected")
+
+	defer dev.Disconnect()
 	deviceLoop(dev)
+
+	for evt := range events {
+		log.Print(evt)
+	}
 }
 
 func deviceLoop(dev bluetooth.Device) {
@@ -81,10 +94,11 @@ func deviceLoop(dev bluetooth.Device) {
 		log.Fatalf("did not find any characteristics")
 	}
 
-	log.Printf("found characteristic: %s", chars[0].UUID().String())
 	chars[0].EnableNotifications(func(buf []byte) {
-		log.Printf("button(%d) value(%d) angle(%d) ", buf[0], buf[1], int16(binary.BigEndian.Uint16(buf[2:])))
+		events <- Event{
+			Button:     int8(buf[0]),
+			ButtonDown: buf[1] == 1,
+			Angle:      int16(binary.BigEndian.Uint16(buf[2:])),
+		}
 	})
-
-	select {}
 }
