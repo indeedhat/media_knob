@@ -7,6 +7,7 @@
 #define BT_KEEB_ATTR_IDX  7
 #define BT_MOUSE_ATTR_IDX 11
 #define BT_MEDIA_ATTR_IDX 19
+#define BT_MACRO_ATTR_IDX 26
 
 
 /**

@@ -12,10 +12,14 @@
 #include "as5600.h"
 #include "battery.h"
 #include "zephyr/init.h"
+#include "zephyr/logging/log.h"
 
 
 static void scroll_action(int16_t angle);
 static void media_action(int16_t angle);
+#if defined CONFIG_KNOBLET_ENABLE_MACRO_MODE
+static void macro_action(int8_t button_idx, int8_t button_state, int16_t angle);
+#endif
 static void button_input_cb(struct input_event *evt, void *user_data);
 static void trigger_media_event(uint16_t media_event);
 static void init_settings();
@@ -83,6 +87,11 @@ int main(void)
 		case MODE_MEDIA:
 			media_action(angle);
 			break;
+#if defined CONFIG_KNOBLET_ENABLE_MACRO_MODE
+		case MODE_MACRO:
+			macro_action(0, 0, angle);
+			break;
+#endif
 		};
 	}
 
@@ -163,6 +172,34 @@ static void media_action(int16_t angle)
 }
 
 
+#if defined CONFIG_KNOBLET_ENABLE_MACRO_MODE
+/**
+ * @brief macro_action handles sending all input to the desktop application when in macro mode
+ *
+ * @param[in] button_idx the current button being pressed/released (0 = no button)
+ * @param[in] button_state the current state of the button in question
+ * @param[in] angle the angle of change
+ */
+static void macro_action(int8_t button_idx, int8_t button_state, int16_t angle)
+{
+	if (angle == 0 && button_idx == 0) {
+		return;
+	}
+
+	uint8_t report[MACRO_REPORT_SIZE];
+	report[MACRO_REPORT_IDX] = MACRO_REPORT_ID;
+	report[MACRO_KEY_IDX] = button_idx;
+	report[MACRO_KEY_STATE_IDX] = button_state;
+	report[MACRO_ANGLE_HIGH_IDX] = angle >> 8;
+	report[MACRO_ANGLE_LOW_IDX] = angle & 0xFF;
+
+
+	LOG_INF("macro angle %d", angle);
+	submit_report("macro", MACRO_REPORT_SIZE, report);
+}
+#endif
+
+
 /**
  * @brief button_input_cb hadles button presses when the evnt is sent from the zephyr
  *        input subsystem
@@ -226,6 +263,13 @@ static void button_input_cb(struct input_event *evt, void *user_data)
 			: HID_KBD_MODIFIER_NONE;
 
 		submit_report("hid keeyboard",KEEB_REPORT_SIZE, report);
+		break;
+
+#if defined CONFIG_KNOBLET_ENABLE_MACRO_MODE
+	case MODE_MACRO:
+		macro_action(evt->code, evt->value, 0);
+		break;
+#endif
 	}
 }
 

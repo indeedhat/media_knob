@@ -59,10 +59,10 @@ enum {
 };
 
 
-static struct hids_report keeb_input  = { .id = KEEB_REPORT_ID,  .type = HIDS_INPUT };
-static struct hids_report media_input = { .id = MEDIA_REPORT_ID, .type = HIDS_INPUT };
-static struct hids_report mouse_input = { .id = MOUSE_REPORT_ID, .type = HIDS_INPUT };
-static struct hids_report mouse_feat  = { .id = MOUSE_REPORT_ID, .type = HIDS_FEATURE };
+static struct hids_report keeb_input   = { .id = KEEB_REPORT_ID,  .type = HIDS_INPUT };
+static struct hids_report media_input  = { .id = MEDIA_REPORT_ID, .type = HIDS_INPUT };
+static struct hids_report mouse_input  = { .id = MOUSE_REPORT_ID, .type = HIDS_INPUT };
+static struct hids_report mouse_feat   = { .id = MOUSE_REPORT_ID, .type = HIDS_FEATURE };
 
 static uint8_t mouse_enabled;
 static uint8_t keeb_enabled;
@@ -211,7 +211,7 @@ BT_GATT_SERVICE_DEFINE(hog_svc,
 	),
 
 	/* Custom Macro Service */
-	BT_GATT_SECONDARY_SERVICE(BT_UUID_MACRO_SERVICE),
+	BT_GATT_PRIMARY_SERVICE(BT_UUID_MACRO_SERVICE),
 	BT_GATT_CHARACTERISTIC(
 		BT_UUID_MACRO_CHARACTERISTIC,
 		BT_GATT_CHRC_NOTIFY,
@@ -224,7 +224,6 @@ BT_GATT_SERVICE_DEFINE(hog_svc,
 		macro_ccc_changed,
 		BT_GATT_PERM_READ | BT_GATT_PERM_WRITE
 	),
-	// TODO: define report
 );
 
 

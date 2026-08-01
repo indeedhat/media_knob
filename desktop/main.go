@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/binary"
 	"log"
 
 	"tinygo.org/x/bluetooth"
@@ -82,7 +83,7 @@ func deviceLoop(dev bluetooth.Device) {
 
 	log.Printf("found characteristic: %s", chars[0].UUID().String())
 	chars[0].EnableNotifications(func(buf []byte) {
-		log.Printf("%s: %v", chars[0].UUID().String(), buf)
+		log.Printf("button(%d) value(%d) angle(%d) ", buf[0], buf[1], int16(binary.BigEndian.Uint16(buf[2:])))
 	})
 
 	select {}

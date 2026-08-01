@@ -18,4 +18,8 @@ config KNOBLET_SAVE_MADE_STATE
 	bool "save the current mode state to persist on restart"
 	default n
 
+config KNOBLET_ENABLE_MACRO_MODE
+	bool "enable a 3rd mode state for macro integration (requires the desktop app)"
+	default n
+
 source "Kconfig.zephyr"

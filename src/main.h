@@ -12,6 +12,9 @@
 enum op_modes {
 	MODE_SCROLL,
 	MODE_MEDIA,
+#if defined CONFIG_KNOBLET_ENABLE_MACRO_MODE
+	MODE_MACRO,
+#endif
 	MODE_COUNT,
 };
 

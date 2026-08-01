@@ -121,12 +121,15 @@ int bt_submit_report(const uint16_t size, const uint8_t *const report)
 	uint8_t tmp[size - 1];
 	memcpy(tmp, report + 1, size - 1);
 
-	if (report[0] == KEEB_REPORT_ID) {
+	switch (report[0]) {
+	case KEEB_REPORT_ID:
 		return notify_report(current_conn, &hog_ctx.attrs[BT_KEEB_ATTR_IDX], tmp, size - 1);
-	} else if (report[0] == MOUSE_REPORT_ID) {
+	case MOUSE_REPORT_ID:
 		return notify_report(current_conn, &hog_ctx.attrs[BT_MOUSE_ATTR_IDX], tmp, size - 1);
-	} else if (report[0] == MEDIA_REPORT_ID) {
+	case MEDIA_REPORT_ID:
 		return notify_report(current_conn, &hog_ctx.attrs[BT_MEDIA_ATTR_IDX], tmp, size - 1);
+	case MACRO_REPORT_ID:
+		return notify_report(current_conn, &hog_ctx.attrs[BT_MACRO_ATTR_IDX], tmp, size - 1);
 	}
 
 	return 0;
@@ -148,6 +151,7 @@ static void connected(struct bt_conn *conn, uint8_t err)
 
 	current_conn = bt_conn_ref(conn);
 }
+
 
 static void disconnected(struct bt_conn *conn, uint8_t reason)
 {
