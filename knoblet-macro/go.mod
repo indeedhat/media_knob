@@ -2,7 +2,10 @@ module github.com/indeedhat/media-knob/knoblet-macro
 
 go 1.26.5
 
-require fyne.io/fyne/v2 v2.8.0
+require (
+	fyne.io/fyne/v2 v2.8.0
+	github.com/indeedhat/icl v0.0.0-20241201163654-3fd7f368648f
+)
 
 require (
 	fyne.io/systray v1.12.2 // indirect
