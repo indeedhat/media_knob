@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -18,13 +19,32 @@ func main() {
 		cfg = &Config{}
 	}
 
+	events := make(chan Event, 1)
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
-	a, w := initUi(cfg)
-	defer a.Quit()
+	ui := initUi(cfg)
 
-	w.ShowAndRun()
+	go func() {
+		go InitBluetooth(events)
+		for {
+			select {
+			case e := <-events:
+				if ui.cfg.LogsEnabled {
+					ui.debug.data = append(ui.debug.data, e.String())
+					ui.debug.Debug.Refresh()
+					ui.debug.Debug.ScrollToBottom()
+				}
 
-	<-quit
+				// TODO: handle triggering macros
+
+			case <-quit:
+				ui.app.Quit()
+				log.Println("quitting")
+				return
+			}
+		}
+	}()
+
+	ui.win.ShowAndRun()
 }
