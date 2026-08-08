@@ -1,8 +1,10 @@
-package main
+package bluetooth
 
 import (
 	"encoding/binary"
-	"log"
+	"fmt"
+
+	knoblet "github.com/indeedhat/media-knob/knoblet-macro/internal"
 
 	"tinygo.org/x/bluetooth"
 )
@@ -15,17 +17,11 @@ const (
 )
 
 var adapter = bluetooth.DefaultAdapter
-var events = make(chan Event, 1)
 
-type Event struct {
-	Angle      int16
-	Button     int8
-	ButtonDown bool
-}
-
-func main() {
+func New(e chan<- knoblet.Event) {
 	if err := adapter.Enable(); err != nil {
-		log.Fatalf("failed to enable bluetooth adapter: %s", err)
+		logEvent(e, "failed to enable bluetooth adapter: %s", err)
+		return
 	}
 
 	var result bluetooth.ScanResult
@@ -33,7 +29,7 @@ func main() {
 
 	err := adapter.Scan(func(a *bluetooth.Adapter, sr bluetooth.ScanResult) {
 		if _, found := seen[sr.Address.String()]; !found {
-			log.Printf("%s (%s)", sr.LocalName(), sr.Address)
+			logEvent(e, "%s (%s)", sr.LocalName(), sr.Address)
 		}
 
 		seen[sr.Address.String()] = struct{}{}
@@ -42,63 +38,69 @@ func main() {
 			return
 		}
 
-		log.Println("found device")
+		logEvent(e, "found device")
 
 		result = sr
 		_ = adapter.StopScan()
 	})
 
 	if err != nil {
-		log.Printf("scanning failed: %s", err)
+		logEvent(e, "scanning failed: %s", err)
 	}
 
 	var dev bluetooth.Device
-	log.Println("attempting to connect")
+	logEvent(e, "attempting to connect")
 	dev, err = adapter.Connect(result.Address, bluetooth.ConnectionParams{})
 	if err != nil {
-		log.Fatalf("failed to connect to device: %w", err)
+		logEvent(e, "failed to connect to device: %w", err)
 	}
 
-	log.Println("connected")
+	logEvent(e, "connected")
 
-	defer dev.Disconnect()
-	deviceLoop(dev)
-
-	for evt := range events {
-		log.Print(evt)
-	}
+	deviceLoop(e, dev)
 }
 
-func deviceLoop(dev bluetooth.Device) {
+func deviceLoop(e chan<- knoblet.Event, dev bluetooth.Device) {
 	svcUUID, err := bluetooth.ParseUUID(ServiceUUID)
 	if err != nil {
-		log.Fatalf("failed to parse service uuid: %s", err)
+		logEvent(e, "failed to parse service uuid: %s", err)
+		return
 	}
 
 	svcs, err := dev.DiscoverServices([]bluetooth.UUID{svcUUID})
 	if err != nil {
-		log.Fatalf("failed to discover services: %s", err)
+		logEvent(e, "failed to discover services: %s", err)
+		return
 	}
 
 	charUUID, err := bluetooth.ParseUUID(CharacteristicUUID)
 	if err != nil {
-		log.Fatalf("failed to parse service uuid: %s", err)
+		logEvent(e, "failed to parse service uuid: %s", err)
+		return
 	}
 
 	chars, err := svcs[0].DiscoverCharacteristics([]bluetooth.UUID{charUUID})
 	if err != nil {
-		log.Fatalf("failed to list characteristics: %s", err)
+		logEvent(e, "failed to list characteristics: %s", err)
+		return
 	}
 
 	if len(chars) != 1 {
-		log.Fatalf("did not find any characteristics")
+		logEvent(e, "did not find any characteristics")
+		return
 	}
 
 	chars[0].EnableNotifications(func(buf []byte) {
-		events <- Event{
+		e <- knoblet.Event{
 			Button:     int8(buf[0]),
 			ButtonDown: buf[1] == 1,
 			Angle:      int16(binary.BigEndian.Uint16(buf[2:])),
 		}
 	})
+}
+
+func logEvent(e chan<- knoblet.Event, format string, args ...any) {
+	e <- knoblet.Event{
+		Log: fmt.Sprintf(format, args...),
+	}
 }

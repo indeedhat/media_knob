@@ -5,46 +5,43 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-)
 
-const (
-	AppId = "dev.ihat.knoblet"
-
-	TrayIconPath = "assets/tray.svg"
+	knoblet "github.com/indeedhat/media-knob/knoblet-macro/internal"
+	"github.com/indeedhat/media-knob/knoblet-macro/internal/bluetooth"
+	"github.com/indeedhat/media-knob/knoblet-macro/internal/config"
+	"github.com/indeedhat/media-knob/knoblet-macro/internal/runner"
+	"github.com/indeedhat/media-knob/knoblet-macro/internal/ui"
 )
 
 func main() {
-	cfg, err := LoadConfig()
+	cfg, err := config.Load()
 	if err != nil {
-		cfg = &Config{}
+		log.Fatal("failed to load config: %w", err)
 	}
 
-	events := make(chan Event, 1)
+	runner := runner.New(cfg)
+
+	events := make(chan knoblet.Event, 1)
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
-	ui := initUi(cfg)
+	ui := ui.New(cfg)
 
 	go func() {
-		go InitBluetooth(events)
+		go bluetooth.New(events)
 		for {
 			select {
 			case e := <-events:
-				if ui.cfg.LogsEnabled {
-					ui.debug.data = append(ui.debug.data, e.String())
-					ui.debug.Debug.Refresh()
-					ui.debug.Debug.ScrollToBottom()
-				}
-
-				// TODO: handle triggering macros
+				ui.LogEvent(e)
+				runner.HandleEvent(e)
 
 			case <-quit:
-				ui.app.Quit()
+				ui.Quit()
 				log.Println("quitting")
 				return
 			}
 		}
 	}()
 
-	ui.win.ShowAndRun()
+	ui.Start()
 }

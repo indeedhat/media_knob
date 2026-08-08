@@ -1,0 +1,46 @@
+{
+    "app.name": "Knoblet Macro",
+
+    "tab.settings": "Settings",
+    "tab.commands": "Commands",
+    "tab.debug": "Debug",
+
+    "tray.open": "Open",
+    "tray.quit": "Quit",
+
+    "label.logs": "Logs",
+    "label.logs.enable": "Enable Logs",
+
+    "label.clockwise": "Clockwise",
+    "label.anti-clockwise": "Anti Clockwise",
+    "label.side-button": "Side Button",
+    "label.side-button-double": "Side Button Double Tap",
+    "label.base-button": "Base Button",
+    "label.base-button-double": "Base Button Double Tap",
+
+    "label.save": "Save",
+    "label.enable": "Enable",
+
+    "label.dead-zone": "Dead Zone",
+    "label.key-down-dead-zone": "Key Down Dead Zone",
+    "label.double-tap-interval": "Double Tap Interval",
+    "label.disable-keyup-on-rotation": "Disable keyup on rotation",
+
+    "help": "Help",
+    "help.clockwise": "Respond to clockwise dial motion",
+    "help.anti-clockwise": "Respond to anti-clockwise dial motion",
+    "help.side-button": "Respond to the side button being pressed (on keyup)",
+    "help.side-button-double": "Respond to the side button being double pressed (on keyup).",
+    "help.base-button": "Respond to the base button being pressed (on keyup)",
+    "help.base-button-double": "Respond to the base button being double pressed (on keyup).",
+
+    "help.dead-zone": "The angle value change required before registering an angle event",
+    "help.key-down-dead-zone": "The dead zone that should be applied while a button is being held",
+    "help.double-tap-interval": "The max amount of time between presses to register as a double tap (ms).\nWhen double tap is enabled for a button the single press will be delayed from registering until the double tap interval elapses.",
+    "help.disable-keyup-on-rotation": "When enabled a keyup event will not be registered for a button if the dial angle has been changed while the button was held.",
+
+    "alert.config-saved": "Config saved",
+
+    "error.config-not-saved": "Failed to save config"
+}
+
