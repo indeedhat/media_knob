@@ -5,6 +5,7 @@ go 1.26.5
 require (
 	fyne.io/fyne/v2 v2.8.0
 	github.com/indeedhat/icl v0.0.0-20241201163654-3fd7f368648f
+	github.com/mattn/go-shellwords v1.0.14
 	tinygo.org/x/bluetooth v0.15.0
 )
 
